@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, status
+from fastapi import FastAPI, Depends, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -7,6 +7,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 from app.db.database import init_db, get_db
 from app.modules.auth.api import router as auth_router
+from app.modules.employers.api import router as employer_router
+from app.modules.employees.api import router as employee_router
 from app.utils.redis import redis_client
 
 
@@ -91,6 +93,8 @@ async def health_check(db: AsyncSession = Depends(get_db)):
 
 # Register Router
 app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth")
+app.include_router(employer_router, prefix=f"{settings.API_V1_STR}/employers")
+app.include_router(employee_router, prefix=f"{settings.API_V1_STR}/employees")
 
 
 if __name__ == "__main__":
