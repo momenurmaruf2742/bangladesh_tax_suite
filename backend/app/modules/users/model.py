@@ -22,10 +22,10 @@ class User(SQLModel, table=True):
     is_verified: bool = Field(default=False, nullable=False)
     role: str = Field(default="Employee", nullable=False)  # Admin, CA, Employee
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
         nullable=False
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
         nullable=False
     )
