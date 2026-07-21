@@ -9,6 +9,7 @@ from app.db.database import init_db, get_db
 from app.modules.auth.api import router as auth_router
 from app.modules.employers.api import router as employer_router
 from app.modules.employees.api import router as employee_router
+from app.modules.salaries.api import router as salary_router
 from app.utils.redis import redis_client
 
 
@@ -95,6 +96,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
 app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth")
 app.include_router(employer_router, prefix=f"{settings.API_V1_STR}/employers")
 app.include_router(employee_router, prefix=f"{settings.API_V1_STR}/employees")
+app.include_router(salary_router, prefix=f"{settings.API_V1_STR}/salaries")
 
 
 if __name__ == "__main__":

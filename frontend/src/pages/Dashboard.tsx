@@ -22,13 +22,18 @@ import {
   Building,
   PlusCircle,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  UploadCloud,
+  Trash2,
+  Edit3
 } from "lucide-react";
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"overview" | "employee" | "employers">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "employee" | "employers" | "salary">("overview");
+  const [salarySubTab, setSalarySubTab] = useState<"slips" | "summary" | "certificate">("slips");
 
   // Local state for Employee profile editing
   const [isEditingEmployee, setIsEditingEmployee] = useState(false);
@@ -54,6 +59,37 @@ export const Dashboard: React.FC = () => {
   const [employerError, setEmployerError] = useState<string | null>(null);
   const [employerSuccess, setEmployerSuccess] = useState(false);
 
+  // Local state for Monthly Salary slips
+  const [isAddingSlip, setIsAddingSlip] = useState(false);
+  const [slipForm, setSlipForm] = useState({
+    month: "",
+    basic_salary: "0.00",
+    house_rent: "0.00",
+    medical_allowance: "0.00",
+    conveyance: "0.00",
+    festival_bonus: "0.00",
+    provident_fund: "0.00",
+    employer_provident_fund: "0.00",
+    other_allowances: "0.00",
+    tax_deducted: "0.00"
+  });
+  const [slipError, setSlipError] = useState<string | null>(null);
+
+  // Local state for Certificate manual edits
+  const [isEditingCert, setIsEditingCert] = useState(false);
+  const [certEditForm, setCertEditForm] = useState({
+    id: "",
+    total_basic: "0.00",
+    total_house_rent: "0.00",
+    total_medical: "0.00",
+    total_conveyance: "0.00",
+    total_bonus: "0.00",
+    total_provident_fund: "0.00",
+    total_tax_deducted: "0.00",
+    total_others: "0.00"
+  });
+  const [certUploadError, setCertUploadError] = useState<string | null>(null);
+
   // 1. Fetch current User Details
   const { data: user, isLoading: isUserLoading, isError: isUserError } = useQuery({
     queryKey: ["profile"],
@@ -64,6 +100,7 @@ export const Dashboard: React.FC = () => {
     retry: 1,
   });
 
+  // 2. Fetch Employee Profile Details
   const { data: employee, isLoading: isEmployeeLoading } = useQuery({
     queryKey: ["employeeProfile"],
     queryFn: async () => {
@@ -93,6 +130,7 @@ export const Dashboard: React.FC = () => {
     retry: false
   });
 
+  // 3. Fetch Registered Employers List
   const { data: employers, isLoading: isEmployersLoading } = useQuery({
     queryKey: ["employers"],
     queryFn: async () => {
@@ -102,10 +140,39 @@ export const Dashboard: React.FC = () => {
     enabled: !!user
   });
 
-  // 4. Mutation to Save Employee Profile
+  // 4. Fetch Monthly Salary Slips (Enabled only when employee profile exists)
+  const { data: salarySlips, isLoading: isSlipsLoading } = useQuery({
+    queryKey: ["salarySlips"],
+    queryFn: async () => {
+      const res = await api.get("/salaries/slips");
+      return res.data;
+    },
+    enabled: !!employee
+  });
+
+  // 5. Fetch Annual Salary Summary
+  const { data: salarySummary, isLoading: isSummaryLoading } = useQuery({
+    queryKey: ["salarySummary"],
+    queryFn: async () => {
+      const res = await api.get("/salaries/summary?financial_year=2025-2026");
+      return res.data;
+    },
+    enabled: !!employee
+  });
+
+  // 6. Fetch Uploaded Certificates
+  const { data: certificates, isLoading: isCertsLoading } = useQuery({
+    queryKey: ["certificates"],
+    queryFn: async () => {
+      const res = await api.get("/salaries/certificates");
+      return res.data;
+    },
+    enabled: !!employee
+  });
+
+  // 7. Mutations
   const saveEmployeeMutation = useMutation({
     mutationFn: async (data: typeof employeeForm) => {
-      // Clean up empty optional values before sending
       const payload = {
         ...data,
         employer_id: data.employer_id ? data.employer_id : null,
@@ -127,7 +194,6 @@ export const Dashboard: React.FC = () => {
     }
   });
 
-  // 5. Mutation to Create Employer
   const createEmployerMutation = useMutation({
     mutationFn: async (data: typeof employerForm) => {
       const payload = {
@@ -148,6 +214,97 @@ export const Dashboard: React.FC = () => {
     },
     onError: (err: any) => {
       setEmployerError(err.response?.data?.detail || "Failed to create employer. Make sure BIN is unique.");
+    }
+  });
+
+  const saveSlipMutation = useMutation({
+    mutationFn: async (data: typeof slipForm) => {
+      const payload = {
+        month: data.month,
+        basic_salary: parseFloat(data.basic_salary) || 0,
+        house_rent: parseFloat(data.house_rent) || 0,
+        medical_allowance: parseFloat(data.medical_allowance) || 0,
+        conveyance: parseFloat(data.conveyance) || 0,
+        festival_bonus: parseFloat(data.festival_bonus) || 0,
+        provident_fund: parseFloat(data.provident_fund) || 0,
+        employer_provident_fund: parseFloat(data.employer_provident_fund) || 0,
+        other_allowances: parseFloat(data.other_allowances) || 0,
+        tax_deducted: parseFloat(data.tax_deducted) || 0
+      };
+      const res = await api.post("/salaries/slips", payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salarySlips"] });
+      queryClient.invalidateQueries({ queryKey: ["salarySummary"] });
+      setIsAddingSlip(false);
+      setSlipForm({
+        month: "",
+        basic_salary: "0.00",
+        house_rent: "0.00",
+        medical_allowance: "0.00",
+        conveyance: "0.00",
+        festival_bonus: "0.00",
+        provident_fund: "0.00",
+        employer_provident_fund: "0.00",
+        other_allowances: "0.00",
+        tax_deducted: "0.00"
+      });
+      setSlipError(null);
+    },
+    onError: (err: any) => {
+      setSlipError(err.response?.data?.detail || "Failed to save salary slip.");
+    }
+  });
+
+  const uploadCertMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("financial_year", "2025-2026");
+      const res = await api.post("/salaries/upload-certificate", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["certificates"] });
+      setCertUploadError(null);
+    },
+    onError: (err: any) => {
+      setCertUploadError(err.response?.data?.detail || "Failed to upload salary certificate PDF.");
+    }
+  });
+
+  const updateCertMutation = useMutation({
+    mutationFn: async (data: typeof certEditForm) => {
+      const payload = {
+        total_basic: parseFloat(data.total_basic) || 0,
+        total_house_rent: parseFloat(data.total_house_rent) || 0,
+        total_medical: parseFloat(data.total_medical) || 0,
+        total_conveyance: parseFloat(data.total_conveyance) || 0,
+        total_bonus: parseFloat(data.total_bonus) || 0,
+        total_provident_fund: parseFloat(data.total_provident_fund) || 0,
+        total_tax_deducted: parseFloat(data.total_tax_deducted) || 0,
+        total_others: parseFloat(data.total_others) || 0
+      };
+      const res = await api.put(`/salaries/certificates/${data.id}`, payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["certificates"] });
+      setIsEditingCert(false);
+    }
+  });
+
+  const deleteCertMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/salaries/certificates/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["certificates"] });
     }
   });
 
@@ -173,7 +330,13 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  if (isUserLoading || isEmployeeLoading || isEmployersLoading) {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      uploadCertMutation.mutate(e.target.files[0]);
+    }
+  };
+
+  if (isUserLoading || isEmployeeLoading || isEmployersLoading || isSlipsLoading || isSummaryLoading || isCertsLoading) {
     return <Loader fullPage />;
   }
 
@@ -236,7 +399,14 @@ export const Dashboard: React.FC = () => {
               <Building className="w-4 h-4" />
               Employer Register
             </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-500 text-sm cursor-not-allowed opacity-60">
+            <button
+              onClick={() => setActiveTab("salary")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
+                activeTab === "salary"
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
+              }`}
+            >
               <Briefcase className="w-4 h-4" />
               Salary & Allowances
             </button>
@@ -289,11 +459,13 @@ export const Dashboard: React.FC = () => {
               {activeTab === "overview" && `Welcome back, ${user.first_name}!`}
               {activeTab === "employee" && "Employee Profile Management"}
               {activeTab === "employers" && "Employer Directories"}
+              {activeTab === "salary" && "Salary Components & Certificate"}
             </h1>
             <p className="text-sm text-gray-400 mt-1">
               {activeTab === "overview" && "Here is your tax overview for assessment year 2025-2026."}
               {activeTab === "employee" && "Setup and manage your job details and NBR tax circle connections."}
               {activeTab === "employers" && "View and register corporate employer groups."}
+              {activeTab === "salary" && "Input monthly salary components, aggregate annual summaries, or verify salary certificates."}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -378,21 +550,24 @@ export const Dashboard: React.FC = () => {
                     onClick={() => setActiveTab("employee")}
                     className="p-4 bg-gray-900/40 border border-gray-800 rounded-lg hover:border-emerald-500/30 transition-all cursor-pointer"
                   >
-                    <h4 className="font-semibold text-white text-sm">Employee & Salary</h4>
+                    <h4 className="font-semibold text-white text-sm">Employee Info</h4>
                     <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      Record your employment agreements, scale basic pay, allowances, house rent exemptions, bonuses, and special festival perks.
+                      Record your designation, department, dates, NID, and link your corporate employer company.
+                    </p>
+                  </div>
+                  <div
+                    onClick={() => setActiveTab("salary")}
+                    className="p-4 bg-gray-900/40 border border-gray-800 rounded-lg hover:border-emerald-500/30 transition-all cursor-pointer"
+                  >
+                    <h4 className="font-semibold text-white text-sm">Salary & Allowances</h4>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      Track basic salary, house rent exemptions, bonuses, and upload annual salary certificates for verification.
                     </p>
                   </div>
                   <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-lg hover:border-emerald-500/30 transition-all opacity-70">
                     <h4 className="font-semibold text-white text-sm">Investments & Rebates</h4>
                     <p className="text-xs text-gray-500 mt-1 leading-relaxed">
                       Track DPS accounts, Provident Funds, Life Insurance, Sanchayapatra policies, and calculate optimal tax rebate values.
-                    </p>
-                  </div>
-                  <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-lg hover:border-emerald-500/30 transition-all opacity-70">
-                    <h4 className="font-semibold text-white text-sm">Tax Engine Rules</h4>
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      NBR regulations for FY 2025-2026. Automated slabs, taxable boundaries, minimum tax brackets, and AIT source adjustments.
                     </p>
                   </div>
                   <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-lg hover:border-emerald-500/30 transition-all opacity-70">
@@ -744,7 +919,7 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Col: Add Employer Form (Available to all for testing, with roles guarded on server) */}
+            {/* Right Col: Add Employer Form */}
             <div className="glass-panel p-6 rounded-xl flex flex-col justify-between">
               <div>
                 <h3 className="text-lg font-bold text-white pb-3 border-b border-gray-800/50 m-0 flex items-center gap-2">
@@ -843,12 +1018,572 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         )}
+
+        {activeTab === "salary" && (
+          <div className="flex flex-col gap-6">
+            {!employee ? (
+              /* Profile Warning state */
+              <div className="glass-panel p-8 text-center rounded-xl max-w-lg mx-auto">
+                <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+                <h3 className="text-lg font-bold text-white">Employee Profile Required</h3>
+                <p className="text-gray-400 text-sm mt-2 leading-relaxed">
+                  Please setup your basic job information, tax zones, and NID inside the **Employee Info** tab before entering monthly components.
+                </p>
+                <button
+                  onClick={() => setActiveTab("employee")}
+                  className="mt-5 py-2 px-5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg transition-colors cursor-pointer"
+                >
+                  Setup Employee Profile
+                </button>
+              </div>
+            ) : (
+              /* Salary Workspace panel */
+              <>
+                {/* Horizontal navigation menu */}
+                <div className="flex gap-2 border-b border-gray-800 pb-px">
+                  <button
+                    onClick={() => setSalarySubTab("slips")}
+                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${
+                      salarySubTab === "slips"
+                        ? "border-emerald-500 text-emerald-400"
+                        : "border-transparent text-gray-500 hover:text-gray-300"
+                    }`}
+                  >
+                    Monthly Salary Slips
+                  </button>
+                  <button
+                    onClick={() => setSalarySubTab("summary")}
+                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${
+                      salarySubTab === "summary"
+                        ? "border-emerald-500 text-emerald-400"
+                        : "border-transparent text-gray-500 hover:text-gray-300"
+                    }`}
+                  >
+                    Annual Salary Summary
+                  </button>
+                  <button
+                    onClick={() => setSalarySubTab("certificate")}
+                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${
+                      salarySubTab === "certificate"
+                        ? "border-emerald-500 text-emerald-400"
+                        : "border-transparent text-gray-500 hover:text-gray-300"
+                    }`}
+                  >
+                    Salary Certificate PDF
+                  </button>
+                </div>
+
+                {salarySubTab === "slips" && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Monthly Slips List */}
+                    <div className="lg:col-span-2 glass-panel p-6 rounded-xl flex flex-col gap-4">
+                      <div className="flex justify-between items-center pb-3 border-b border-gray-800/50">
+                        <h3 className="text-lg font-bold text-white m-0">Monthly Salary Logs</h3>
+                        {!isAddingSlip && (
+                          <button
+                            onClick={() => setIsAddingSlip(true)}
+                            className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                          >
+                            + Log Monthly Slip
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left text-gray-300">
+                          <thead className="text-[10px] uppercase text-gray-500 border-b border-gray-800">
+                            <tr>
+                              <th className="py-2.5 px-1">Month</th>
+                              <th className="py-2.5 px-1 text-right">Basic</th>
+                              <th className="py-2.5 px-1 text-right">House Rent</th>
+                              <th className="py-2.5 px-1 text-right">Medical</th>
+                              <th className="py-2.5 px-1 text-right">Bonus</th>
+                              <th className="py-2.5 px-1 text-right">PF</th>
+                              <th className="py-2.5 px-1 text-right">TDS (Tax)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-800/50">
+                            {salarySlips?.length === 0 ? (
+                              <tr>
+                                <td colSpan={7} className="text-center py-8 text-gray-500">
+                                  No monthly slips logged yet. Click "+ Log Monthly Slip" to start.
+                                </td>
+                              </tr>
+                            ) : (
+                              salarySlips?.map((slip: any) => (
+                                <tr key={slip.id} className="hover:bg-gray-800/10">
+                                  <td className="py-3 px-1 font-semibold text-white">{slip.month}</td>
+                                  <td className="py-3 px-1 text-right">৳{parseFloat(slip.basic_salary).toLocaleString()}</td>
+                                  <td className="py-3 px-1 text-right">৳{parseFloat(slip.house_rent).toLocaleString()}</td>
+                                  <td className="py-3 px-1 text-right">৳{parseFloat(slip.medical_allowance).toLocaleString()}</td>
+                                  <td className="py-3 px-1 text-right">৳{parseFloat(slip.festival_bonus).toLocaleString()}</td>
+                                  <td className="py-3 px-1 text-right">৳{parseFloat(slip.provident_fund).toLocaleString()}</td>
+                                  <td className="py-3 px-1 text-right text-amber-500">৳{parseFloat(slip.tax_deducted).toLocaleString()}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Add Slip Panel Form */}
+                    {isAddingSlip && (
+                      <div className="glass-panel p-6 rounded-xl flex flex-col gap-4">
+                        <h3 className="text-lg font-bold text-white pb-3 border-b border-gray-800/50 m-0">
+                          Log Monthly Component
+                        </h3>
+
+                        {slipError && (
+                          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-200 text-xs flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4" />
+                            <span>{slipError}</span>
+                          </div>
+                        )}
+
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            saveSlipMutation.mutate(slipForm);
+                          }}
+                          className="space-y-3.5 text-xs"
+                        >
+                          <div>
+                            <label className="block text-gray-400 mb-1">Month (YYYY-MM)</label>
+                            <input
+                              type="month"
+                              value={slipForm.month}
+                              onChange={(e) => setSlipForm({ ...slipForm, month: e.target.value })}
+                              className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                              required
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-gray-400 mb-1">Basic Salary</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={slipForm.basic_salary}
+                                onChange={(e) => setSlipForm({ ...slipForm, basic_salary: e.target.value })}
+                                className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors text-right"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-gray-400 mb-1">House Rent</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={slipForm.house_rent}
+                                onChange={(e) => setSlipForm({ ...slipForm, house_rent: e.target.value })}
+                                className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors text-right"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-gray-400 mb-1">Medical Allowance</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={slipForm.medical_allowance}
+                                onChange={(e) => setSlipForm({ ...slipForm, medical_allowance: e.target.value })}
+                                className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors text-right"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-gray-400 mb-1">Conveyance</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={slipForm.conveyance}
+                                onChange={(e) => setSlipForm({ ...slipForm, conveyance: e.target.value })}
+                                className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors text-right"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-gray-400 mb-1">Festival Bonus</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={slipForm.festival_bonus}
+                                onChange={(e) => setSlipForm({ ...slipForm, festival_bonus: e.target.value })}
+                                className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors text-right"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-gray-400 mb-1">Other Allowances</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={slipForm.other_allowances}
+                                onChange={(e) => setSlipForm({ ...slipForm, other_allowances: e.target.value })}
+                                className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors text-right"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-gray-400 mb-1">PF (Employee)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={slipForm.provident_fund}
+                                onChange={(e) => setSlipForm({ ...slipForm, provident_fund: e.target.value })}
+                                className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors text-right"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-gray-400 mb-1">PF (Employer)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={slipForm.employer_provident_fund}
+                                onChange={(e) => setSlipForm({ ...slipForm, employer_provident_fund: e.target.value })}
+                                className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors text-right"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-gray-400 mb-1">Monthly Source Tax Deducted (TDS)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={slipForm.tax_deducted}
+                              onChange={(e) => setSlipForm({ ...slipForm, tax_deducted: e.target.value })}
+                              className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors text-right"
+                            />
+                          </div>
+
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              type="submit"
+                              disabled={saveSlipMutation.isPending}
+                              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-semibold rounded-lg shadow transition-colors cursor-pointer"
+                            >
+                              {saveSlipMutation.isPending ? "Logging..." : "Log Slip"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setIsAddingSlip(false)}
+                              className="py-2 px-4 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-lg transition-colors cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {salarySubTab === "summary" && (
+                  <div className="glass-panel p-6 rounded-xl max-w-3xl mx-auto flex flex-col gap-6">
+                    <div className="flex justify-between items-center pb-3 border-b border-gray-800/50">
+                      <div>
+                        <h3 className="text-lg font-bold text-white m-0">Annual Salary Aggregation</h3>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Calculated automatically from {salarySummary?.months_count || 0} logged months.
+                        </p>
+                      </div>
+                      <div className="bg-emerald-950/30 border border-emerald-900/40 text-emerald-400 text-xs px-3 py-1.5 rounded-full font-bold">
+                        FY {salarySummary?.financial_year || "2025-2026"}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
+                      <div className="space-y-3">
+                        <div className="flex justify-between pb-2 border-b border-gray-800/40">
+                          <span className="text-gray-400">Total Basic Salary</span>
+                          <span className="text-white font-semibold">৳{parseFloat(salarySummary?.total_basic || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between pb-2 border-b border-gray-800/40">
+                          <span className="text-gray-400">Total House Rent</span>
+                          <span className="text-white font-semibold">৳{parseFloat(salarySummary?.total_house_rent || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between pb-2 border-b border-gray-800/40">
+                          <span className="text-gray-400">Total Medical Allowance</span>
+                          <span className="text-white font-semibold">৳{parseFloat(salarySummary?.total_medical || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between pb-2 border-b border-gray-800/40">
+                          <span className="text-gray-400">Total Conveyance</span>
+                          <span className="text-white font-semibold">৳{parseFloat(salarySummary?.total_conveyance || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex justify-between pb-2 border-b border-gray-800/40">
+                          <span className="text-gray-400">Festival Bonuses</span>
+                          <span className="text-white font-semibold">৳{parseFloat(salarySummary?.total_bonus || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between pb-2 border-b border-gray-800/40">
+                          <span className="text-gray-400">Provident Fund (Employee)</span>
+                          <span className="text-white font-semibold">৳{parseFloat(salarySummary?.total_provident_fund || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between pb-2 border-b border-gray-800/40">
+                          <span className="text-gray-400">Provident Fund (Employer)</span>
+                          <span className="text-white font-semibold">৳{parseFloat(salarySummary?.total_employer_provident_fund || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between pb-2 border-b border-gray-800/40">
+                          <span className="text-gray-400">Other Allowances</span>
+                          <span className="text-white font-semibold">৳{parseFloat(salarySummary?.total_other_allowances || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-6 border-t border-gray-800">
+                      <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-lg">
+                        <span className="text-gray-400 text-xs block">Annual Gross Salary</span>
+                        <span className="text-2xl font-bold text-emerald-400 block mt-1">
+                          ৳{parseFloat(salarySummary?.gross_salary || 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="p-4 bg-gray-900/60 border border-gray-800 rounded-lg">
+                        <span className="text-gray-400 text-xs block">Source Tax Paid (TDS)</span>
+                        <span className="text-2xl font-bold text-amber-500 block mt-1">
+                          ৳{parseFloat(salarySummary?.total_tax_deducted || 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {salarySubTab === "certificate" && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Left side: Upload area or list */}
+                    <div className="lg:col-span-2 flex flex-col gap-6">
+                      {certificates?.length === 0 ? (
+                        /* Upload Zone */
+                        <div className="glass-panel p-10 rounded-xl text-center flex flex-col items-center justify-center border-2 border-dashed border-gray-800 hover:border-emerald-500/30 transition-all">
+                          <UploadCloud className="w-14 h-14 text-gray-600 mb-4" />
+                          <h4 className="text-base font-bold text-white">Upload HR Salary Certificate</h4>
+                          <p className="text-xs text-gray-500 mt-2 max-w-sm leading-relaxed">
+                            Upload your official annual salary certificate PDF (FY 2025-26).
+                            Our system will automatically extract and pre-populate your tax calculations.
+                          </p>
+
+                          {certUploadError && (
+                            <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-200 text-xs">
+                              {certUploadError}
+                            </div>
+                          )}
+
+                          <label className="mt-6 py-2 px-5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-md cursor-pointer transition-all">
+                            Browse PDF File
+                            <input
+                              type="file"
+                              accept="application/pdf"
+                              className="hidden"
+                              onChange={handleFileUpload}
+                            />
+                          </label>
+                        </div>
+                      ) : (
+                        /* List Certs */
+                        certificates?.map((cert: any) => (
+                          <div key={cert.id} className="glass-panel p-6 rounded-xl flex flex-col gap-4">
+                            <div className="flex justify-between items-start pb-3 border-b border-gray-800/50">
+                              <div className="flex items-center gap-3">
+                                <span className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/10">
+                                  <FileText className="w-6 h-6" />
+                                </span>
+                                <div>
+                                  <h4 className="font-bold text-white text-sm m-0">{cert.file_name}</h4>
+                                  <span className="text-xs text-gray-500">FY {cert.financial_year}</span>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    setCertEditForm({
+                                      id: cert.id,
+                                      total_basic: cert.total_basic,
+                                      total_house_rent: cert.total_house_rent,
+                                      total_medical: cert.total_medical,
+                                      total_conveyance: cert.total_conveyance,
+                                      total_bonus: cert.total_bonus,
+                                      total_provident_fund: cert.total_provident_fund,
+                                      total_tax_deducted: cert.total_tax_deducted,
+                                      total_others: cert.total_others
+                                    });
+                                    setIsEditingCert(true);
+                                  }}
+                                  className="p-2 text-gray-400 hover:text-white bg-gray-900 border border-gray-800 rounded-lg cursor-pointer"
+                                  title="Edit values"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => deleteCertMutation.mutate(cert.id)}
+                                  className="p-2 text-red-400 hover:text-red-300 bg-red-950/10 border border-red-950/20 rounded-lg cursor-pointer"
+                                  title="Delete document"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-2 text-xs">
+                              <div>
+                                <span className="text-gray-500 block uppercase">Total Basic</span>
+                                <span className="text-white font-semibold mt-0.5 block">৳{parseFloat(cert.total_basic).toLocaleString()}</span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500 block uppercase">House Rent</span>
+                                <span className="text-white font-semibold mt-0.5 block">৳{parseFloat(cert.total_house_rent).toLocaleString()}</span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500 block uppercase">Medical</span>
+                                <span className="text-white font-semibold mt-0.5 block">৳{parseFloat(cert.total_medical).toLocaleString()}</span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500 block uppercase">Conveyance</span>
+                                <span className="text-white font-semibold mt-0.5 block">৳{parseFloat(cert.total_conveyance).toLocaleString()}</span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500 block uppercase">Bonuses</span>
+                                <span className="text-white font-semibold mt-0.5 block">৳{parseFloat(cert.total_bonus).toLocaleString()}</span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500 block uppercase">Provident Fund</span>
+                                <span className="text-white font-semibold mt-0.5 block">৳{parseFloat(cert.total_provident_fund).toLocaleString()}</span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500 block uppercase">Source Tax (TDS)</span>
+                                <span className="text-amber-500 font-semibold mt-0.5 block">৳{parseFloat(cert.total_tax_deducted).toLocaleString()}</span>
+                              </div>
+                              <div>
+                                <span className="text-gray-500 block uppercase">Status</span>
+                                <span className="bg-emerald-950/30 border border-emerald-900/40 text-emerald-400 text-[10px] px-2 py-0.5 mt-0.5 inline-block font-bold rounded-full">
+                                  {cert.status}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Right side: Manual correction edits */}
+                    {isEditingCert && (
+                      <div className="glass-panel p-6 rounded-xl flex flex-col gap-4 text-xs">
+                        <h3 className="text-lg font-bold text-white pb-3 border-b border-gray-800/50 m-0">
+                          Adjust Extracted Values
+                        </h3>
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            updateCertMutation.mutate(certEditForm);
+                          }}
+                          className="space-y-3"
+                        >
+                          <div>
+                            <label className="block text-gray-400 mb-0.5">Total Basic Salary</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={certEditForm.total_basic}
+                              onChange={(e) => setCertEditForm({ ...certEditForm, total_basic: e.target.value })}
+                              className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white text-right focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-400 mb-0.5">Total House Rent</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={certEditForm.total_house_rent}
+                              onChange={(e) => setCertEditForm({ ...certEditForm, total_house_rent: e.target.value })}
+                              className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white text-right focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-400 mb-0.5">Total Medical</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={certEditForm.total_medical}
+                              onChange={(e) => setCertEditForm({ ...certEditForm, total_medical: e.target.value })}
+                              className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white text-right focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-400 mb-0.5">Total Conveyance</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={certEditForm.total_conveyance}
+                              onChange={(e) => setCertEditForm({ ...certEditForm, total_conveyance: e.target.value })}
+                              className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white text-right focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-400 mb-0.5">Total Bonuses</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={certEditForm.total_bonus}
+                              onChange={(e) => setCertEditForm({ ...certEditForm, total_bonus: e.target.value })}
+                              className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white text-right focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-400 mb-0.5">Total Provident Fund</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={certEditForm.total_provident_fund}
+                              onChange={(e) => setCertEditForm({ ...certEditForm, total_provident_fund: e.target.value })}
+                              className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white text-right focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-400 mb-0.5">Total Source Tax (TDS)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={certEditForm.total_tax_deducted}
+                              onChange={(e) => setCertEditForm({ ...certEditForm, total_tax_deducted: e.target.value })}
+                              className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white text-right focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              type="submit"
+                              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow cursor-pointer"
+                            >
+                              Save Edits
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingCert(false)}
+                              className="py-2 px-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-lg cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );
 };
 
-// Quick icons helper to handle missing imports
 const MapPinIcon = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
