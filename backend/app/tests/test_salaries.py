@@ -209,3 +209,53 @@ async def test_salary_certificate_ocr_parsing(client: AsyncClient):
         assert float(cert["total_tax_deducted"]) == 30000.0
         assert float(cert["total_others"]) == 48000.0
 
+
+@pytest.mark.asyncio
+async def test_monthly_payslip_pdf_upload(client: AsyncClient):
+    # Register and setup employee profile
+    register_payload = {
+        "email": "payslip.pdf.user@example.com",
+        "phone": "+8801755555555",
+        "first_name": "Payslip",
+        "last_name": "User",
+        "password": "strongpassword"
+    }
+    await client.post("/api/v1/auth/register", json=register_payload)
+    
+    login_res = await client.post("/api/v1/auth/login", json={
+        "username": "payslip.pdf.user@example.com",
+        "password": "strongpassword"
+    })
+    token = login_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    profile_payload = {"designation": "Dev", "nid": "5544332211"}
+    await client.post("/api/v1/employees/profile", json=profile_payload, headers=headers)
+
+    mock_page = MagicMock()
+    mock_page.extract_text.return_value = """
+    Gigalogy Ltd Salary Payslip – June 2026
+    Earnings (TK) Deductions (TK)
+    Salary 82,900.00 Advance Income Tax 1,108.00
+    Total additions 82,900.00 Total deductions 1,108.00
+    Net Salary 81,792.00
+    """
+    mock_reader = MagicMock()
+    mock_reader.pages = [mock_page]
+
+    with patch("pypdf.PdfReader", return_value=mock_reader):
+        file_data = BytesIO(b"%PDF-1.4 mock payslip content")
+        files = {"file": ("Salary_Slip_Jun26.pdf", file_data, "application/pdf")}
+
+        res = await client.post(
+            "/api/v1/salaries/upload-slip-pdf",
+            files=files,
+            headers=headers
+        )
+        assert res.status_code == 201
+        slip = res.json()
+        assert slip["month"] == "2026-06"
+        assert float(slip["tax_deducted"]) == 1108.0
+        assert float(slip["basic_salary"]) > 0
+
+

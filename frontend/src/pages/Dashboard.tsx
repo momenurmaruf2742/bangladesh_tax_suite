@@ -116,6 +116,39 @@ export const Dashboard: React.FC = () => {
     tax_deducted: "0.00"
   });
   const [slipError, setSlipError] = useState<string | null>(null);
+  const [grossInput, setGrossInput] = useState("0.00");
+
+  const formatMonthLabel = (mStr: string) => {
+    if (!mStr || !mStr.includes("-")) return mStr || "--";
+    const [year, month] = mStr.split("-");
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    const monthIdx = parseInt(month, 10) - 1;
+    if (monthIdx >= 0 && monthIdx < 12) {
+      return `${monthNames[monthIdx]} ${year}`;
+    }
+    return mStr;
+  };
+
+  const handleAutoCalculateGross = () => {
+    const gross = parseFloat(grossInput) || 0;
+    if (gross <= 0) return;
+    const basic = (gross * 0.60).toFixed(2);
+    const houseRent = (gross * 0.30).toFixed(2);
+    const medical = (gross * 0.05).toFixed(2);
+    const conveyance = (gross * 0.05).toFixed(2);
+
+    setSlipForm(prev => ({
+      ...prev,
+      basic_salary: basic,
+      house_rent: houseRent,
+      medical_allowance: medical,
+      conveyance: conveyance
+    }));
+  };
+
 
   // Local state for Certificate manual edits
   const [isEditingCert, setIsEditingCert] = useState(false);
@@ -380,6 +413,28 @@ export const Dashboard: React.FC = () => {
       alert(err.response?.data?.detail || "Failed to delete salary slip.");
     }
   });
+
+  const uploadSlipPdfMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await api.post("/salaries/upload-slip-pdf", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salarySlips"] });
+      queryClient.invalidateQueries({ queryKey: ["salarySummary"] });
+      setSlipError(null);
+    },
+    onError: (err: any) => {
+      setSlipError(err.response?.data?.detail || "Failed to upload and parse payslip PDF.");
+    }
+  });
+
 
   const uploadCertMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -1395,23 +1450,43 @@ export const Dashboard: React.FC = () => {
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Monthly Slips List */}
                     <div className="lg:col-span-2 glass-panel p-6 rounded-xl flex flex-col gap-4">
-                      <div className="flex justify-between items-center pb-3 border-b border-gray-800/50">
-                        <h3 className="text-lg font-bold text-white m-0">Monthly Salary Logs</h3>
-                        {!isAddingSlip && (
-                          <button
-                            onClick={() => setIsAddingSlip(true)}
-                            className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-                          >
-                            + Log Monthly Slip
-                          </button>
-                        )}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-800/50">
+                        <div>
+                          <h3 className="text-lg font-bold text-white m-0">Monthly Salary Logs</h3>
+                          <p className="text-xs text-gray-500 m-0 mt-0.5">Upload monthly payslips or manually log components</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="py-1.5 px-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shrink-0">
+                            <UploadCloud className="w-4 h-4 text-emerald-400" />
+                            <span>{uploadSlipPdfMutation.isPending ? "Parsing PDF..." : "Upload Payslip PDF"}</span>
+                            <input
+                              type="file"
+                              accept=".pdf"
+                              className="hidden"
+                              disabled={uploadSlipPdfMutation.isPending}
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  uploadSlipPdfMutation.mutate(e.target.files[0]);
+                                }
+                              }}
+                            />
+                          </label>
+                          {!isAddingSlip && (
+                            <button
+                              onClick={() => setIsAddingSlip(true)}
+                              className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer shrink-0"
+                            >
+                              + Log Slip
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       <div className="overflow-x-auto">
                         <table className="w-full text-xs text-left text-gray-300">
                           <thead className="text-[10px] uppercase text-gray-500 border-b border-gray-800">
                             <tr>
-                              <th className="py-2.5 px-1">Month</th>
+                              <th className="py-2.5 px-1">Month Period</th>
                               <th className="py-2.5 px-1 text-right">Basic</th>
                               <th className="py-2.5 px-1 text-right">House Rent</th>
                               <th className="py-2.5 px-1 text-right">Medical</th>
@@ -1425,19 +1500,22 @@ export const Dashboard: React.FC = () => {
                             {salarySlips?.length === 0 ? (
                               <tr>
                                 <td colSpan={8} className="text-center py-8 text-gray-500">
-                                  No monthly slips logged yet. Click "+ Log Monthly Slip" to start.
+                                  No monthly slips logged yet. Upload a payslip PDF or click "+ Log Slip" to start.
                                 </td>
                               </tr>
                             ) : (
                               salarySlips?.map((slip: any) => (
                                 <tr key={slip.id} className="hover:bg-gray-800/10">
-                                  <td className="py-3 px-1 font-semibold text-white">{slip.month}</td>
+                                  <td className="py-3 px-1 font-semibold text-white">
+                                    <div className="text-sm">{formatMonthLabel(slip.month)}</div>
+                                    <div className="text-[10px] text-gray-500 font-mono">{slip.month}</div>
+                                  </td>
                                   <td className="py-3 px-1 text-right">৳{parseFloat(slip.basic_salary).toLocaleString()}</td>
                                   <td className="py-3 px-1 text-right">৳{parseFloat(slip.house_rent).toLocaleString()}</td>
                                   <td className="py-3 px-1 text-right">৳{parseFloat(slip.medical_allowance).toLocaleString()}</td>
                                   <td className="py-3 px-1 text-right">৳{parseFloat(slip.festival_bonus).toLocaleString()}</td>
                                   <td className="py-3 px-1 text-right">৳{parseFloat(slip.provident_fund).toLocaleString()}</td>
-                                  <td className="py-3 px-1 text-right text-amber-500">৳{parseFloat(slip.tax_deducted).toLocaleString()}</td>
+                                  <td className="py-3 px-1 text-right text-amber-500 font-semibold">৳{parseFloat(slip.tax_deducted).toLocaleString()}</td>
                                   <td className="py-3 px-1 text-center space-x-1">
                                     <button
                                       onClick={() => {
@@ -1453,6 +1531,15 @@ export const Dashboard: React.FC = () => {
                                           other_allowances: slip.other_allowances,
                                           tax_deducted: slip.tax_deducted
                                         });
+                                        const grossSum = (
+                                          parseFloat(slip.basic_salary || 0) +
+                                          parseFloat(slip.house_rent || 0) +
+                                          parseFloat(slip.medical_allowance || 0) +
+                                          parseFloat(slip.conveyance || 0) +
+                                          parseFloat(slip.festival_bonus || 0) +
+                                          parseFloat(slip.other_allowances || 0)
+                                        ).toFixed(2);
+                                        setGrossInput(grossSum);
                                         setIsAddingSlip(true);
                                       }}
                                       className="p-1 hover:bg-gray-800 text-gray-400 hover:text-white rounded transition-colors cursor-pointer inline-flex"
@@ -1462,7 +1549,7 @@ export const Dashboard: React.FC = () => {
                                     </button>
                                     <button
                                       onClick={() => {
-                                        if (confirm(`Are you sure you want to delete the salary slip for ${slip.month}?`)) {
+                                        if (confirm(`Are you sure you want to delete the salary slip for ${formatMonthLabel(slip.month)}?`)) {
                                           deleteSlipMutation.mutate(slip.id);
                                         }
                                       }}
@@ -1495,15 +1582,49 @@ export const Dashboard: React.FC = () => {
                           </div>
                         )}
 
+                        {/* Quick Gross Auto-Split Box */}
+                        <div className="p-3 bg-emerald-950/20 border border-emerald-500/20 rounded-lg space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
+                              <span>⚡</span> Quick Gross Salary Auto-Split
+                            </span>
+                            <span className="text-[10px] text-gray-400">BD 60/30/5/5 Standard</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              placeholder="Gross Salary (e.g. 82900.00)"
+                              value={grossInput}
+                              onChange={(e) => setGrossInput(e.target.value)}
+                              className="flex-1 px-2.5 py-1.5 bg-gray-950/80 border border-gray-800 rounded text-white text-xs text-right focus:outline-none focus:border-emerald-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleAutoCalculateGross}
+                              className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded text-xs transition-colors cursor-pointer shrink-0"
+                            >
+                              Auto-Fill Breakdown
+                            </button>
+                          </div>
+                        </div>
+
                         <form
                           onSubmit={(e) => {
                             e.preventDefault();
                             saveSlipMutation.mutate(slipForm);
                           }}
-                          className="space-y-3.5 text-xs"
+                          className="space-y-3 text-xs"
                         >
                           <div>
-                            <label className="block text-gray-400 mb-1">Month (YYYY-MM)</label>
+                            <div className="flex justify-between items-center mb-1">
+                              <label className="block text-gray-400">Month (YYYY-MM)</label>
+                              {slipForm.month && (
+                                <span className="text-[10px] text-emerald-400 font-bold">
+                                  {formatMonthLabel(slipForm.month)}
+                                </span>
+                              )}
+                            </div>
                             <input
                               type="month"
                               value={slipForm.month}
@@ -1511,6 +1632,9 @@ export const Dashboard: React.FC = () => {
                               className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
                               required
                             />
+                            <span className="text-[10px] text-gray-500 mt-1 block">
+                              Format: YYYY-MM (e.g. 2026-06 for June 2026)
+                            </span>
                           </div>
 
                           <div className="grid grid-cols-2 gap-3">
@@ -1612,8 +1736,23 @@ export const Dashboard: React.FC = () => {
                               step="0.01"
                               value={slipForm.tax_deducted}
                               onChange={(e) => setSlipForm({ ...slipForm, tax_deducted: e.target.value })}
-                              className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors text-right"
+                              className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors text-right font-bold text-amber-400"
                             />
+                          </div>
+
+                          {/* Calculated Gross Preview Bar */}
+                          <div className="p-2.5 bg-gray-900/60 rounded-lg flex justify-between items-center text-xs border border-gray-800">
+                            <span className="text-gray-400 font-medium">Calculated Gross Salary:</span>
+                            <span className="text-white font-bold text-sm">
+                              ৳ {(
+                                (parseFloat(slipForm.basic_salary) || 0) +
+                                (parseFloat(slipForm.house_rent) || 0) +
+                                (parseFloat(slipForm.medical_allowance) || 0) +
+                                (parseFloat(slipForm.conveyance) || 0) +
+                                (parseFloat(slipForm.festival_bonus) || 0) +
+                                (parseFloat(slipForm.other_allowances) || 0)
+                              ).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
                           </div>
 
                           <div className="flex gap-2 pt-2">

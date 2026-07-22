@@ -71,6 +71,12 @@ class SalarySlip(SQLModel, table=True):
         decimal_places=2,
         description="Monthly source tax deducted (TDS)"
     )
+    doc_path: str | None = Field(
+        default=None,
+        nullable=True,
+        description="Path to uploaded monthly payslip PDF proof"
+    )
+
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
         nullable=False

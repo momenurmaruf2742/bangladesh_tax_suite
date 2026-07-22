@@ -15,6 +15,7 @@ class SalarySlipBase(BaseModel):
     employer_provident_fund: Decimal = Field(default=Decimal("0.0"), ge=0, description="Employer RPF portion")
     other_allowances: Decimal = Field(default=Decimal("0.0"), ge=0)
     tax_deducted: Decimal = Field(default=Decimal("0.0"), ge=0, description="Monthly TDS")
+    doc_path: str | None = Field(default=None, description="Path to uploaded monthly payslip PDF")
 
 
 class SalarySlipCreate(SalarySlipBase):
@@ -31,6 +32,7 @@ class SalarySlipUpdate(BaseModel):
     employer_provident_fund: Decimal | None = None
     other_allowances: Decimal | None = None
     tax_deducted: Decimal | None = None
+    doc_path: str | None = None
 
 
 class SalarySlipResponse(SalarySlipBase):
@@ -40,6 +42,7 @@ class SalarySlipResponse(SalarySlipBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
 
 
 class SalarySlipSummaryResponse(BaseModel):

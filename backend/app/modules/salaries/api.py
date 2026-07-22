@@ -36,6 +36,23 @@ async def list_my_salary_slips(
     return await service.get_my_slips(current_user.id)
 
 
+@router.post("/upload-slip-pdf", response_model=SalarySlipResponse, status_code=status.HTTP_201_CREATED)
+async def upload_monthly_payslip_pdf(
+    file: UploadFile = File(..., description="Monthly Payslip PDF document"),
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Upload a monthly payslip PDF document and auto-extract month, gross, TDS, and allowances."""
+    service = SalaryService(db)
+    file_content = await file.read()
+    return await service.parse_and_save_monthly_payslip(
+        user_id=current_user.id,
+        file_content=file_content,
+        file_name=file.filename
+    )
+
+
+
 @router.get("/summary", response_model=SalarySlipSummaryResponse)
 async def get_salary_summary(
     financial_year: str = "2025-2026",
