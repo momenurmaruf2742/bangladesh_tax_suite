@@ -44,11 +44,18 @@ class UserRepository:
             password_hash=hashed_password,
             is_active=True,
             is_verified=False,
-            role="Employee"
+            role=getattr(user_create, "role", "Employee") or "Employee"
         )
         self.db.add(db_user)
         await self.db.flush()  # Populates ID and defaults
         return db_user
+
+    async def get_all_users(self) -> list[User]:
+        """Fetch all users for Super Admin oversight."""
+        statement = select(User).order_by(User.created_at.desc())
+        result = await self.db.exec(statement)
+        return list(result.all())
+
 
     async def update(self, db_user: User, user_update: UserUpdate) -> User:
         """Update an existing user's attributes."""

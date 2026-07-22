@@ -4,11 +4,13 @@ import { useNavigate, Link } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as zod from "zod";
 import { api } from "../services/api";
-import { User, Mail, Phone, FileText, Lock, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { User, Mail, Phone, FileText, Lock, AlertCircle, CheckCircle, Loader2, Building2, Briefcase, UserCheck } from "lucide-react";
 
 // Form validation schema
 const registerSchema = zod
   .object({
+    role: zod.string().min(1, "Please select an account type"),
+    company_name: zod.string().optional(),
     first_name: zod.string().min(1, "First name is required"),
     last_name: zod.string().min(1, "Last name is required"),
     email: zod.string().email("Invalid email address"),
@@ -38,20 +40,24 @@ export const Register: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<"Employee" | "Admin" | "CA">("Employee");
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<RegisterFormFields>({
     resolver: zodResolver(registerSchema),
+    defaultValues: {
+      role: "Employee",
+    }
   });
 
   const onSubmit = async (data: RegisterFormFields) => {
     setLoading(true);
     setError(null);
     try {
-      // Exclude confirm_password before sending to API
       const { confirm_password, ...payload } = data;
       await api.post("/auth/register", payload);
       setSuccess(true);
@@ -67,23 +73,28 @@ export const Register: React.FC = () => {
     }
   };
 
+  const handleRoleSelect = (role: "Employee" | "Admin" | "CA") => {
+    setSelectedRole(role);
+    setValue("role", role);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#090f1c] px-4 py-12 relative overflow-hidden">
       {/* Decorative background glows */}
       <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-950/20 blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-emerald-900/10 blur-[120px] pointer-events-none"></div>
 
-      <div className="w-full max-w-lg glass-panel p-8 rounded-2xl shadow-2xl relative z-10">
+      <div className="w-full max-w-xl glass-panel p-8 rounded-2xl shadow-2xl relative z-10">
         {/* Header/Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 bg-emerald-500/10 rounded-xl mb-4 border border-emerald-500/20">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center p-3 bg-emerald-500/10 rounded-xl mb-3 border border-emerald-500/20">
             <span className="text-2xl font-bold text-emerald-400">৳</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white m-0">
             Create Tax Account
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Join the Bangladesh Tax Suite platform
+            Choose your account type to join Bangladesh Tax Suite
           </p>
         </div>
 
@@ -102,6 +113,78 @@ export const Register: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Account Type Role Selection Cards */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Select Account Type
+            </label>
+            <input type="hidden" {...register("role")} value={selectedRole} />
+            <div className="grid grid-cols-3 gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleRoleSelect("Employee")}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col items-center text-center ${
+                  selectedRole === "Employee"
+                    ? "bg-emerald-950/40 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500"
+                    : "bg-gray-900/40 border-gray-800 text-gray-400 hover:border-gray-700"
+                }`}
+              >
+                <UserCheck className="w-5 h-5 mb-1 text-emerald-400" />
+                <span className="text-xs font-bold text-white block">Individual</span>
+                <span className="text-[10px] text-gray-500 block leading-tight">Taxpayer / Employee</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleRoleSelect("Admin")}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col items-center text-center ${
+                  selectedRole === "Admin"
+                    ? "bg-emerald-950/40 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500"
+                    : "bg-gray-900/40 border-gray-800 text-gray-400 hover:border-gray-700"
+                }`}
+              >
+                <Building2 className="w-5 h-5 mb-1 text-amber-400" />
+                <span className="text-xs font-bold text-white block">Company</span>
+                <span className="text-[10px] text-gray-500 block leading-tight">HR & Payroll Admin</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleRoleSelect("CA")}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col items-center text-center ${
+                  selectedRole === "CA"
+                    ? "bg-emerald-950/40 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500"
+                    : "bg-gray-900/40 border-gray-800 text-gray-400 hover:border-gray-700"
+                }`}
+              >
+                <Briefcase className="w-5 h-5 mb-1 text-blue-400" />
+                <span className="text-xs font-bold text-white block">CA Firm</span>
+                <span className="text-[10px] text-gray-500 block leading-tight">Tax Practitioner</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Conditional Company Name for Employer Admin */}
+          {selectedRole === "Admin" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="company_name">
+                Company Name / Business Title
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
+                  <Building2 className="w-4 h-4" />
+                </span>
+                <input
+                  id="company_name"
+                  type="text"
+                  {...register("company_name")}
+                  placeholder="Acme Technologies BD Ltd."
+                  className="w-full pl-9 pr-4 py-2 bg-gray-900/50 border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-sm"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* First Name */}
             <div>

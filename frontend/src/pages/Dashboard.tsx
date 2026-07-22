@@ -26,7 +26,8 @@ import {
   FileText,
   UploadCloud,
   Trash2,
-  Edit3
+  Edit3,
+  Crown
 } from "lucide-react";
 
 interface Investment {
@@ -69,7 +70,7 @@ interface RebateSummary {
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"overview" | "employee" | "employers" | "salary" | "investments" | "tax_calculator">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "employee" | "employers" | "salary" | "investments" | "tax_calculator" | "admin_center">("overview");
   const [salarySubTab, setSalarySubTab] = useState<"slips" | "summary" | "certificate">("slips");
   const [investSubTab, setInvestSubTab] = useState<"eligible" | "ait" | "summary">("eligible");
 
@@ -283,6 +284,18 @@ export const Dashboard: React.FC = () => {
     },
     enabled: !!employee
   });
+
+  // 7. Fetch Super Admin All Users List
+  const { data: adminUsers } = useQuery({
+    queryKey: ["adminUsers"],
+    queryFn: async () => {
+      const res = await api.get("/users/admin/all");
+      return res.data;
+    },
+    enabled: !!user && (user.role === "SuperAdmin" || user.role === "Admin"),
+    retry: false
+  });
+
 
   // Fetch Investments
   const { data: investments, isLoading: isInvestmentsLoading } = useQuery({
@@ -730,6 +743,20 @@ export const Dashboard: React.FC = () => {
               <Calculator className="w-4 h-4" />
               Tax Calculator
             </button>
+
+            {(user.role === "SuperAdmin" || user.role === "Admin") && (
+              <button
+                onClick={() => setActiveTab("admin_center")}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
+                  activeTab === "admin_center"
+                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold"
+                    : "text-purple-400/80 hover:bg-purple-950/30 hover:text-purple-300"
+                }`}
+              >
+                <Crown className="w-4 h-4 text-purple-400" />
+                Super Admin Center
+              </button>
+            )}
           </nav>
         </div>
 
@@ -743,8 +770,8 @@ export const Dashboard: React.FC = () => {
               <p className="text-sm font-semibold text-white truncate m-0 leading-snug">
                 {userFullName}
               </p>
-              <p className="text-xs text-gray-500 truncate m-0">
-                {user.role}
+              <p className="text-xs font-medium text-emerald-400 truncate m-0">
+                {user.role === "Admin" ? "🏢 Company Admin" : user.role === "CA" ? "💼 CA Practitioner" : user.role === "SuperAdmin" ? "👑 Super Admin" : "👤 Taxpayer"}
               </p>
             </div>
           </div>
@@ -2769,6 +2796,186 @@ export const Dashboard: React.FC = () => {
             onNavigateToProfile={() => setActiveTab("employee")}
             onNavigateToInvestments={() => setActiveTab("investments")}
           />
+        )}
+
+        {activeTab === "admin_center" && (
+          <div className="space-y-6">
+            {/* Header Banner */}
+            <div className="glass-panel p-6 rounded-xl bg-gradient-to-r from-purple-950/40 via-gray-900 to-gray-950 border border-purple-500/20 flex justify-between items-center">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-purple-400 flex items-center gap-1.5 mb-1">
+                  <Crown className="w-4 h-4" /> Live SaaS Platform Control Center
+                </span>
+                <h1 className="text-2xl font-extrabold text-white m-0">Super Admin Dashboard</h1>
+                <p className="text-xs text-gray-400 mt-1 m-0">
+                  Manage registered Individual Taxpayers, Companies, CA Firms, and Act 2023 Tax Slabs Engine.
+                </p>
+              </div>
+              <div className="hidden sm:flex items-center gap-3">
+                <div className="px-4 py-2 bg-purple-900/30 border border-purple-500/30 rounded-lg text-right">
+                  <span className="text-[10px] text-purple-300 block uppercase font-semibold">Active Financial Year</span>
+                  <span className="text-sm font-bold text-white">FY 2025-2026</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Metrics Overview Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="glass-panel p-5 rounded-xl flex items-center gap-4 border border-gray-800">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold">
+                  👥
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block font-medium">Total Registered Users</span>
+                  <span className="text-xl font-extrabold text-white">{adminUsers?.length || 1}</span>
+                  <span className="text-[10px] text-emerald-400 block">SaaS Active Accounts</span>
+                </div>
+              </div>
+
+              <div className="glass-panel p-5 rounded-xl flex items-center gap-4 border border-gray-800">
+                <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-bold">
+                  🏢
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block font-medium">Active Companies</span>
+                  <span className="text-xl font-extrabold text-white">{employers?.length || 0}</span>
+                  <span className="text-[10px] text-amber-400 block">HR/Employer Admins</span>
+                </div>
+              </div>
+
+              <div className="glass-panel p-5 rounded-xl flex items-center gap-4 border border-gray-800">
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold">
+                  💼
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block font-medium">CA Firms & Lawyers</span>
+                  <span className="text-xl font-extrabold text-white">
+                    {adminUsers?.filter((u: any) => u.role === "CA")?.length || 0}
+                  </span>
+                  <span className="text-[10px] text-blue-400 block">Tax Practitioners</span>
+                </div>
+              </div>
+
+              <div className="glass-panel p-5 rounded-xl flex items-center gap-4 border border-gray-800">
+                <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 font-bold">
+                  ⚖️
+                </div>
+                <div>
+                  <span className="text-xs text-gray-400 block font-medium">Act 2023 Rules Engine</span>
+                  <span className="text-xl font-extrabold text-emerald-400">ONLINE</span>
+                  <span className="text-[10px] text-purple-400 block">Sec 78 & Slabs Active</span>
+                </div>
+              </div>
+            </div>
+
+            {/* User Management & Rules Panels Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* User Oversight Table */}
+              <div className="lg:col-span-2 glass-panel p-6 rounded-xl flex flex-col gap-4">
+                <div className="flex justify-between items-center pb-3 border-b border-gray-800/50">
+                  <h3 className="text-lg font-bold text-white m-0">System Users Oversight</h3>
+                  <span className="text-xs text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/20 font-semibold">
+                    {adminUsers?.length || 0} Total Accounts
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left text-gray-300">
+                    <thead className="text-[10px] uppercase text-gray-500 border-b border-gray-800">
+                      <tr>
+                        <th className="py-2.5 px-2">User Name</th>
+                        <th className="py-2.5 px-2">Email</th>
+                        <th className="py-2.5 px-2">Phone</th>
+                        <th className="py-2.5 px-2">Account Role</th>
+                        <th className="py-2.5 px-2 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800/50">
+                      {!adminUsers || adminUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="text-center py-6 text-gray-500">
+                            No registered users found.
+                          </td>
+                        </tr>
+                      ) : (
+                        adminUsers.map((u: any) => (
+                          <tr key={u.id} className="hover:bg-gray-800/20">
+                            <td className="py-3 px-2 font-semibold text-white">
+                              {u.first_name} {u.last_name}
+                            </td>
+                            <td className="py-3 px-2 text-gray-300 font-mono text-[11px]">{u.email}</td>
+                            <td className="py-3 px-2 text-gray-400">{u.phone}</td>
+                            <td className="py-3 px-2">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                u.role === "Admin"
+                                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                  : u.role === "CA"
+                                  ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                                  : u.role === "SuperAdmin"
+                                  ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                                  : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                              }`}>
+                                {u.role === "Admin" ? "Company Admin" : u.role === "CA" ? "CA Firm" : u.role === "SuperAdmin" ? "Super Admin" : "Taxpayer"}
+                              </span>
+                            </td>
+                            <td className="py-3 px-2 text-center">
+                              <span className="text-emerald-400 text-[11px] font-bold">● Active</span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* NBR Rules Engine Configurator Preview */}
+              <div className="glass-panel p-6 rounded-xl flex flex-col gap-4">
+                <h3 className="text-lg font-bold text-white pb-3 border-b border-gray-800/50 m-0">
+                  NBR Act 2023 Rules Engine
+                </h3>
+
+                <div className="space-y-3 text-xs">
+                  <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
+                    <span className="text-gray-400">General Tax Free Threshold:</span>
+                    <span className="text-white font-bold">৳ 3,50,000</span>
+                  </div>
+
+                  <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
+                    <span className="text-gray-400">Female / Senior (65+) Threshold:</span>
+                    <span className="text-white font-bold">৳ 4,00,000</span>
+                  </div>
+
+                  <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
+                    <span className="text-gray-400">Max Investment Rebate Cap:</span>
+                    <span className="text-emerald-400 font-bold">৳ 10,00,000</span>
+                  </div>
+
+                  <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
+                    <span className="text-gray-400">Max Allowable Investment:</span>
+                    <span className="text-emerald-400 font-bold">20% Taxable Income</span>
+                  </div>
+
+                  <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
+                    <span className="text-gray-400">Rebate Percentage (Sec 78):</span>
+                    <span className="text-emerald-400 font-bold">15%</span>
+                  </div>
+
+                  <div className="p-3 bg-purple-950/20 border border-purple-500/20 rounded-lg space-y-1.5">
+                    <span className="text-[11px] font-bold text-purple-400 block">Slab Rates Breakdown:</span>
+                    <div className="text-[11px] text-gray-300 space-y-1 font-mono">
+                      <div className="flex justify-between"><span>First ৳3.5L:</span><span className="text-emerald-400">0%</span></div>
+                      <div className="flex justify-between"><span>Next ৳1.0L:</span><span>5%</span></div>
+                      <div className="flex justify-between"><span>Next ৳3.0L:</span><span>10%</span></div>
+                      <div className="flex justify-between"><span>Next ৳4.0L:</span><span>15%</span></div>
+                      <div className="flex justify-between"><span>Next ৳5.0L:</span><span>20%</span></div>
+                      <div className="flex justify-between"><span>Balance:</span><span className="text-rose-400">25%</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </main>
     </div>

@@ -13,6 +13,9 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6, description="Password (min 6 characters)")
+    role: str = Field("Employee", description="User role: Employee, Admin, CA, SuperAdmin")
+    company_name: str | None = Field(None, description="Optional company name for Employer Admin")
+
 
 
 class UserUpdate(BaseModel):

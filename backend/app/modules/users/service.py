@@ -38,7 +38,31 @@ class UserService:
                 )
         
         hashed_password = hash_password(user_create.password)
-        return await self.repo.create(user_create, hashed_password)
+        new_user = await self.repo.create(user_create, hashed_password)
+
+        # If role is Admin (Employer Admin) and company_name is provided, auto-create Employer record
+        if user_create.role == "Admin" and user_create.company_name:
+            try:
+                from app.modules.employers.model import Employer
+                from app.modules.employers.repository import EmployerRepository
+                employer_repo = EmployerRepository(self.repo.db)
+                bin_str = f"BIN-{uuid.uuid4().hex[:8].upper()}"
+                employer = Employer(
+                    name=user_create.company_name,
+                    address="Head Office, Bangladesh",
+                    bin=bin_str,
+                    contact_email=user_create.email,
+                    contact_phone=user_create.phone
+                )
+                await employer_repo.create(employer)
+            except Exception as e:
+                print(f"Notice: Auto employer creation failed: {e}")
+
+        return new_user
+
+    async def get_all_users(self) -> list[User]:
+        return await self.repo.get_all_users()
+
 
     async def get_user_by_id(self, user_id: uuid.UUID) -> User:
         user = await self.repo.get_by_id(user_id)

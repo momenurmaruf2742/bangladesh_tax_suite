@@ -94,13 +94,17 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     return health_status
 
 
+from app.modules.users.api import router as user_router
+
 # Register Router
 app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth")
+app.include_router(user_router, prefix=f"{settings.API_V1_STR}/users")
 app.include_router(employer_router, prefix=f"{settings.API_V1_STR}/employers")
 app.include_router(employee_router, prefix=f"{settings.API_V1_STR}/employees")
 app.include_router(salary_router, prefix=f"{settings.API_V1_STR}/salaries")
 app.include_router(investment_router, prefix=f"{settings.API_V1_STR}/investments")
 app.include_router(tax_router, prefix=f"{settings.API_V1_STR}/taxes")
+
 
 
 if __name__ == "__main__":
