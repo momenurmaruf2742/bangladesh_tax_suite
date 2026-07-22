@@ -22,7 +22,7 @@ async_session_maker = sessionmaker(
 
 
 async def init_db() -> None:
-    """Initialize database tables. Note that in production, Alembic migrations should be used."""
+    """Initialize database tables and seed default Super Admin if missing."""
     async with engine.begin() as conn:
         # Create all tables if they do not exist
         await conn.run_sync(SQLModel.metadata.create_all)
@@ -32,6 +32,39 @@ async def init_db() -> None:
             await conn.execute(text("ALTER TABLE salary_slips ADD COLUMN IF NOT EXISTS doc_path VARCHAR;"))
         except Exception:
             pass
+
+    # Seed default Super Admin user
+    async with async_session_maker() as session:
+        try:
+            from sqlmodel import select
+            from app.modules.users.model import User
+            from app.core.security import hash_password
+
+            statement = select(User).where((User.email == "superadmin@taxsuite.com") | (User.phone == "01963191891"))
+            result = await session.exec(statement)
+            existing_admin = result.first()
+
+            if not existing_admin:
+                admin_user = User(
+                    email="superadmin@taxsuite.com",
+                    phone="01963191891",
+                    password_hash=hash_password("strongpassword123"),
+                    first_name="Super",
+                    last_name="Admin",
+                    is_active=True,
+                    is_verified=True,
+                    role="SuperAdmin"
+                )
+                session.add(admin_user)
+                await session.commit()
+            else:
+                existing_admin.role = "SuperAdmin"
+                existing_admin.password_hash = hash_password("strongpassword123")
+                session.add(existing_admin)
+                await session.commit()
+        except Exception as e:
+            print(f"Notice: Super Admin seeding status: {e}")
+
 
 
 
