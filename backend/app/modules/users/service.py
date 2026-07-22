@@ -40,8 +40,8 @@ class UserService:
         hashed_password = hash_password(user_create.password)
         new_user = await self.repo.create(user_create, hashed_password)
 
-        # If role is Admin (Employer Admin) and company_name is provided, auto-create Employer record
-        if user_create.role == "Admin" and user_create.company_name:
+        # If role is Admin or CA and company_name is provided, auto-create Employer/Firm record
+        if user_create.role in ["Admin", "CA"] and user_create.company_name:
             try:
                 from app.modules.employers.model import Employer
                 from app.modules.employers.repository import EmployerRepository

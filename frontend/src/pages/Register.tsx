@@ -75,7 +75,7 @@ export const Register: React.FC = () => {
 
   const handleRoleSelect = (role: "Employee" | "Admin" | "CA") => {
     setSelectedRole(role);
-    setValue("role", role);
+    setValue("role", role, { shouldValidate: true });
   };
 
   return (
@@ -168,21 +168,21 @@ export const Register: React.FC = () => {
             </div>
           </div>
 
-          {/* Conditional Company Name for Employer Admin */}
-          {selectedRole === "Admin" && (
+          {/* Conditional Company/Firm Name for Employer Admin or CA Firm */}
+          {(selectedRole === "Admin" || selectedRole === "CA") && (
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1.5" htmlFor="company_name">
-                Company Name / Business Title
+                {selectedRole === "Admin" ? "Company / Employer Name" : "CA Firm / Advisory Title"}
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
-                  <Building2 className="w-4 h-4" />
+                  {selectedRole === "Admin" ? <Building2 className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />}
                 </span>
                 <input
                   id="company_name"
                   type="text"
                   {...register("company_name")}
-                  placeholder="Acme Technologies BD Ltd."
+                  placeholder={selectedRole === "Admin" ? "e.g. Grameenphone Ltd." : "e.g. Rahman Rahman Huq CA"}
                   className="w-full pl-9 pr-4 py-2 bg-gray-900/50 border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all text-sm"
                 />
               </div>
