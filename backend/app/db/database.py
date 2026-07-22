@@ -30,6 +30,7 @@ async def init_db() -> None:
         try:
             from sqlalchemy import text
             await conn.execute(text("ALTER TABLE salary_slips ADD COLUMN IF NOT EXISTS doc_path VARCHAR;"))
+            await conn.execute(text("UPDATE users SET tin = NULL WHERE tin = '' OR tin IS NOT NULL AND TRIM(tin) = '';"))
         except Exception:
             pass
 

@@ -28,9 +28,9 @@ class UserService:
                 detail="Phone number already registered"
             )
         
-        # Check duplicate TIN (if provided)
-        if user_create.tin:
-            existing_tin = await self.repo.get_by_tin(user_create.tin)
+        # Check duplicate TIN (if provided and non-empty)
+        if user_create.tin and user_create.tin.strip():
+            existing_tin = await self.repo.get_by_tin(user_create.tin.strip())
             if existing_tin:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,

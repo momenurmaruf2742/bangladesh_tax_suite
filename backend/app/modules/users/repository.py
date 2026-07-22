@@ -40,12 +40,14 @@ class UserRepository:
         # Companies (Admin) and CA Firms (CA) require Super Admin approval (is_active=False).
         is_active = True if role in ["Employee", "SuperAdmin"] else False
 
+        tin_val = user_create.tin.strip() if user_create.tin and user_create.tin.strip() else None
+
         db_user = User(
             email=user_create.email,
             phone=user_create.phone,
             first_name=user_create.first_name,
             last_name=user_create.last_name,
-            tin=user_create.tin,
+            tin=tin_val,
             password_hash=hashed_password,
             is_active=is_active,
             is_verified=False,

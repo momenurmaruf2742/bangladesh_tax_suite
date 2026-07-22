@@ -59,6 +59,17 @@ export const Register: React.FC = () => {
     setError(null);
     try {
       const { confirm_password, ...payload } = data;
+      if (!payload.tin || !payload.tin.trim()) {
+        delete payload.tin;
+      } else {
+        payload.tin = payload.tin.trim();
+      }
+      if (!payload.company_name || !payload.company_name.trim()) {
+        delete payload.company_name;
+      } else {
+        payload.company_name = payload.company_name.trim();
+      }
+
       await api.post("/auth/register", payload);
       setSuccess(true);
       setTimeout(() => {
