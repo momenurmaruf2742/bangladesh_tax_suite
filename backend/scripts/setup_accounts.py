@@ -25,16 +25,18 @@ async def setup_accounts():
     await init_db()
     async with async_session_maker() as session:
         # 1. Setup normal user: momenur.maruf@gmail.com
-        stmt1 = select(User).where(User.email == "momenur.maruf@gmail.com")
+        stmt1 = select(User).where((User.email == "momenur.maruf@gmail.com") | (User.phone == "01711223344"))
         res1 = await session.exec(stmt1)
         user1 = res1.first()
         if user1:
+            user1.email = "momenur.maruf@gmail.com"
+            user1.phone = "01711223344"
             user1.role = "Employee"
             user1.is_active = True
             user1.is_verified = True
             user1.password_hash = hash_password("strongpassword123")
             session.add(user1)
-            print("✅ Existing user 'momenur.maruf@gmail.com' updated to Normal User (Employee)!")
+            print("✅ Existing user updated to Normal User 'momenur.maruf@gmail.com'!")
         else:
             user1 = User(
                 email="momenur.maruf@gmail.com",
@@ -50,16 +52,18 @@ async def setup_accounts():
             print("✅ New Normal User 'momenur.maruf@gmail.com' created!")
 
         # 2. Setup super user: momenur.tax@taxsuite.com
-        stmt2 = select(User).where(User.email == "momenur.tax@taxsuite.com")
+        stmt2 = select(User).where((User.email == "momenur.tax@taxsuite.com") | (User.phone == "01963191891"))
         res2 = await session.exec(stmt2)
         user2 = res2.first()
         if user2:
+            user2.email = "momenur.tax@taxsuite.com"
+            user2.phone = "01963191891"
             user2.role = "SuperAdmin"
             user2.is_active = True
             user2.is_verified = True
             user2.password_hash = hash_password("strongpassword123")
             session.add(user2)
-            print("✅ Existing user 'momenur.tax@taxsuite.com' updated to Super Admin!")
+            print("✅ Existing user updated to Super Admin 'momenur.tax@taxsuite.com'!")
         else:
             user2 = User(
                 email="momenur.tax@taxsuite.com",
