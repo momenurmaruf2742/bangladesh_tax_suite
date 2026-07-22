@@ -65,9 +65,20 @@ export const Register: React.FC = () => {
         navigate("/login");
       }, 2000);
     } catch (err: any) {
-      setError(
-        err.response?.data?.detail || "Registration failed. Please try again."
-      );
+      let errorMsg = "Registration failed. Please try again.";
+      const detail = err.response?.data?.detail;
+      if (detail) {
+        if (typeof detail === "string") {
+          errorMsg = detail;
+        } else if (Array.isArray(detail)) {
+          errorMsg = detail
+            .map((item: any) => (typeof item === "string" ? item : item.msg || JSON.stringify(item)))
+            .join(", ");
+        } else if (typeof detail === "object") {
+          errorMsg = JSON.stringify(detail);
+        }
+      }
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
