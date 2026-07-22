@@ -26,6 +26,13 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         # Create all tables if they do not exist
         await conn.run_sync(SQLModel.metadata.create_all)
+        # Ensure new columns exist on existing tables
+        try:
+            from sqlalchemy import text
+            await conn.execute(text("ALTER TABLE salary_slips ADD COLUMN IF NOT EXISTS doc_path VARCHAR;"))
+        except Exception:
+            pass
+
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

@@ -420,18 +420,21 @@ export const Dashboard: React.FC = () => {
       formData.append("file", file);
       const res = await api.post("/salaries/upload-slip-pdf", formData, {
         headers: {
-          "Content-Type": "multipart/form-data"
+          "Content-Type": undefined
         }
       });
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["salarySlips"] });
       queryClient.invalidateQueries({ queryKey: ["salarySummary"] });
       setSlipError(null);
+      alert(`✅ Monthly Payslip uploaded & parsed successfully for ${formatMonthLabel(data.month)}!\nGross Salary & TDS populated.`);
     },
     onError: (err: any) => {
-      setSlipError(err.response?.data?.detail || "Failed to upload and parse payslip PDF.");
+      const msg = err.response?.data?.detail || "Failed to upload and parse payslip PDF.";
+      setSlipError(msg);
+      alert(`❌ PDF Upload Failed: ${msg}`);
     }
   });
 
@@ -443,17 +446,21 @@ export const Dashboard: React.FC = () => {
       formData.append("financial_year", "2025-2026");
       const res = await api.post("/salaries/upload-certificate", formData, {
         headers: {
-          "Content-Type": "multipart/form-data"
+          "Content-Type": undefined
         }
       });
       return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["certificates"] });
+      queryClient.invalidateQueries({ queryKey: ["salarySummary"] });
       setCertUploadError(null);
+      alert("✅ Salary Certificate uploaded & parsed successfully!");
     },
     onError: (err: any) => {
-      setCertUploadError(err.response?.data?.detail || "Failed to upload salary certificate PDF.");
+      const msg = err.response?.data?.detail || "Failed to upload salary certificate PDF.";
+      setCertUploadError(msg);
+      alert(`❌ Certificate Upload Failed: ${msg}`);
     }
   });
 
@@ -1467,6 +1474,7 @@ export const Dashboard: React.FC = () => {
                               onChange={(e) => {
                                 if (e.target.files && e.target.files[0]) {
                                   uploadSlipPdfMutation.mutate(e.target.files[0]);
+                                  e.target.value = "";
                                 }
                               }}
                             />
