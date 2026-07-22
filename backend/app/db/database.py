@@ -45,48 +45,7 @@ async def init_db() -> None:
         except Exception:
             pass
 
-    # Ensure required accounts exist with correct roles
-    async with async_session_maker() as session:
-        try:
-            from sqlmodel import select
-            from app.modules.users.model import User
-            from app.core.security import hash_password
 
-            # 1. Ensure SuperAdmin: momenur.tax@taxsuite.com
-            stmt1 = select(User).where(User.email == "momenur.tax@taxsuite.com")
-            res1 = await session.exec(stmt1)
-            user_super = res1.first()
-            if not user_super:
-                user_super = User(
-                    email="momenur.tax@taxsuite.com",
-                    phone="01963191891",
-                    password_hash=hash_password("strongpassword123"),
-                    first_name="Momenur",
-                    last_name="TaxAdmin",
-                    is_active=True,
-                    is_verified=True,
-                    role="SuperAdmin"
-                )
-                session.add(user_super)
-            else:
-                user_super.role = "SuperAdmin"
-                user_super.is_active = True
-                user_super.is_verified = True
-                user_super.password_hash = hash_password("strongpassword123")
-                session.add(user_super)
-
-            # 2. Ensure Normal User: momenur.maruf@gmail.com
-            stmt2 = select(User).where(User.email == "momenur.maruf@gmail.com")
-            res2 = await session.exec(stmt2)
-            user_norm = res2.first()
-            if user_norm:
-                user_norm.role = "Employee"
-                user_norm.is_active = True
-                session.add(user_norm)
-
-            await session.commit()
-        except Exception as e:
-            print(f"Notice: Initial account seeding status: {e}")
 
 
 
