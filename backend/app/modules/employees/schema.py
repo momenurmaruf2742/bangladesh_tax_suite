@@ -13,6 +13,10 @@ class EmployeeBase(BaseModel):
     nid: str | None = Field(None, description="10 or 17-digit National Identification Number (NID)")
     tax_zone: str | None = Field(None, description="Bangladesh tax zone, e.g. Tax Zone 15, Dhaka")
     tax_circle: str | None = Field(None, description="Bangladesh tax circle, e.g. Circle 302")
+    gender: str = Field("Male", description="Gender: Male, Female, Third Gender")
+    is_disabled: bool = Field(False, description="Disability status")
+    is_freedom_fighter: bool = Field(False, description="Freedom fighter status")
+    location: str = Field("Dhaka/Chittagong City Corporation", description="Location: Dhaka/Chittagong City Corporation, Other City Corporation, Outside City Corporation")
 
 
 class EmployeeCreate(EmployeeBase):
@@ -27,6 +31,10 @@ class EmployeeUpdate(BaseModel):
     nid: str | None = None
     tax_zone: str | None = None
     tax_circle: str | None = None
+    gender: str | None = None
+    is_disabled: bool | None = None
+    is_freedom_fighter: bool | None = None
+    location: str | None = None
 
 
 class EmployeeResponse(EmployeeBase):

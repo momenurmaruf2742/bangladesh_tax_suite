@@ -98,3 +98,15 @@ async def delete_salary_certificate(
     service = SalaryService(db)
     await service.delete_certificate(current_user.id, cert_id)
     return None
+
+
+@router.delete("/slips/{slip_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_salary_slip(
+    slip_id: uuid.UUID,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a monthly salary slip log."""
+    service = SalaryService(db)
+    await service.delete_salary_slip(current_user.id, slip_id)
+    return None

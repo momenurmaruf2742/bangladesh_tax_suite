@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch, MagicMock
 from io import BytesIO
 from httpx import AsyncClient
 
@@ -75,6 +76,16 @@ async def test_salary_slip_workflow(client: AsyncClient):
     assert float(summary["total_bonus"]) == 50000.0
     assert float(summary["gross_salary"]) == (100000.0 + 50000.0 + 10000.0 + 5000.0 + 50000.0 + 2000.0)
 
+    # 8. Delete a slip
+    slips_list = (await client.get("/api/v1/salaries/slips", headers=headers)).json()
+    slip_id = slips_list[0]["id"]
+    res = await client.delete(f"/api/v1/salaries/slips/{slip_id}", headers=headers)
+    assert res.status_code == 204
+
+    # 9. Verify list of slips now has only 1 slip
+    res = await client.get("/api/v1/salaries/slips", headers=headers)
+    assert len(res.json()) == 1
+
 
 @pytest.mark.asyncio
 async def test_salary_certificate_upload_and_adjust(client: AsyncClient):
@@ -132,3 +143,69 @@ async def test_salary_certificate_upload_and_adjust(client: AsyncClient):
     # Delete certificate
     res = await client.delete(f"/api/v1/salaries/certificates/{cert_id}", headers=headers)
     assert res.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_salary_certificate_ocr_parsing(client: AsyncClient):
+    # Setup employee profile
+    register_payload = {
+        "email": "ocr.user@example.com",
+        "phone": "+8801733333334",
+        "first_name": "OCR",
+        "last_name": "Tester",
+        "password": "strongpassword"
+    }
+    await client.post("/api/v1/auth/register", json=register_payload)
+    
+    login_res = await client.post("/api/v1/auth/login", json={
+        "username": "ocr.user@example.com",
+        "password": "strongpassword"
+    })
+    token = login_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    profile_payload = {
+        "designation": "Staff",
+        "nid": "1122334455"
+    }
+    await client.post("/api/v1/employees/profile", json=profile_payload, headers=headers)
+
+    # Mock PdfReader
+    mock_page = MagicMock()
+    mock_page.extract_text.return_value = """
+    OFFICIAL SALARY SUMMARY
+    Basic Salary: 720,000.00
+    House Rent: 360,000.00
+    Medical Allowance: 144,000.00
+    Conveyance Allowance: 36,000.00
+    Festival Bonus: 120,000.00
+    Provident Fund: 72,000.00
+    Tax Deducted at Source (TDS): 30,000.00
+    Other Allowance: 48,000.00
+    """
+    mock_reader = MagicMock()
+    mock_reader.pages = [mock_page]
+
+    with patch("pypdf.PdfReader", return_value=mock_reader):
+        file_data = BytesIO(b"%PDF-1.4 mock pdf content")
+        files = {"file": ("salary_certificate.pdf", file_data, "application/pdf")}
+        data = {"financial_year": "2025-2026"}
+
+        res = await client.post(
+            "/api/v1/salaries/upload-certificate",
+            data=data,
+            files=files,
+            headers=headers
+        )
+        assert res.status_code == 201
+        cert = res.json()
+        assert cert["file_name"] == "salary_certificate.pdf"
+        assert float(cert["total_basic"]) == 720000.0
+        assert float(cert["total_house_rent"]) == 360000.0
+        assert float(cert["total_medical"]) == 144000.0
+        assert float(cert["total_conveyance"]) == 36000.0
+        assert float(cert["total_bonus"]) == 120000.0
+        assert float(cert["total_provident_fund"]) == 72000.0
+        assert float(cert["total_tax_deducted"]) == 30000.0
+        assert float(cert["total_others"]) == 48000.0
+

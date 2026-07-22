@@ -85,7 +85,11 @@ class EmployeeRepository:
             date_of_joining=employee_create.date_of_joining,
             nid=employee_create.nid,
             tax_zone=employee_create.tax_zone,
-            tax_circle=employee_create.tax_circle
+            tax_circle=employee_create.tax_circle,
+            gender=employee_create.gender,
+            is_disabled=employee_create.is_disabled,
+            is_freedom_fighter=employee_create.is_freedom_fighter,
+            location=employee_create.location
         )
         self.db.add(db_employee)
         await self.db.flush()

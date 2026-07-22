@@ -10,6 +10,8 @@ from app.modules.auth.api import router as auth_router
 from app.modules.employers.api import router as employer_router
 from app.modules.employees.api import router as employee_router
 from app.modules.salaries.api import router as salary_router
+from app.modules.investments.api import router as investment_router
+from app.modules.taxes.api import router as tax_router
 from app.utils.redis import redis_client
 
 
@@ -97,6 +99,8 @@ app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth")
 app.include_router(employer_router, prefix=f"{settings.API_V1_STR}/employers")
 app.include_router(employee_router, prefix=f"{settings.API_V1_STR}/employees")
 app.include_router(salary_router, prefix=f"{settings.API_V1_STR}/salaries")
+app.include_router(investment_router, prefix=f"{settings.API_V1_STR}/investments")
+app.include_router(tax_router, prefix=f"{settings.API_V1_STR}/taxes")
 
 
 if __name__ == "__main__":

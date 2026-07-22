@@ -3,12 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api, tokenStorage } from "../services/api";
 import { Loader } from "../components/Loader";
+import { TaxCalculatorPanel } from "../components/TaxCalculatorPanel";
 import {
   LayoutDashboard,
   Users,
   Briefcase,
   TrendingUp,
-  FileSpreadsheet,
   LogOut,
   User as UserIcon,
   Shield,
@@ -29,11 +29,49 @@ import {
   Edit3
 } from "lucide-react";
 
+interface Investment {
+  id: string;
+  employee_id: string;
+  financial_year: string;
+  category: string;
+  amount: number;
+  description: string | null;
+  doc_path: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AITRecord {
+  id: string;
+  employee_id: string;
+  financial_year: string;
+  category: string;
+  amount: number;
+  challan_number: string | null;
+  challan_date: string | null;
+  description: string | null;
+  doc_path: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface RebateSummary {
+  financial_year: string;
+  total_invested: number;
+  total_ait: number;
+  dps_total: number;
+  life_insurance_total: number;
+  sanchayapatra_total: number;
+  stock_market_total: number;
+  other_investments_total: number;
+}
+
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"overview" | "employee" | "employers" | "salary">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "employee" | "employers" | "salary" | "investments" | "tax_calculator">("overview");
   const [salarySubTab, setSalarySubTab] = useState<"slips" | "summary" | "certificate">("slips");
+  const [investSubTab, setInvestSubTab] = useState<"eligible" | "ait" | "summary">("eligible");
 
   // Local state for Employee profile editing
   const [isEditingEmployee, setIsEditingEmployee] = useState(false);
@@ -44,7 +82,11 @@ export const Dashboard: React.FC = () => {
     date_of_joining: "",
     nid: "",
     tax_zone: "",
-    tax_circle: ""
+    tax_circle: "",
+    gender: "Male",
+    is_disabled: false,
+    is_freedom_fighter: false,
+    location: "Dhaka/Chittagong City Corporation"
   });
   const [employeeError, setEmployeeError] = useState<string | null>(null);
 
@@ -90,6 +132,41 @@ export const Dashboard: React.FC = () => {
   });
   const [certUploadError, setCertUploadError] = useState<string | null>(null);
 
+  // Local state for Investments and AIT
+  const [investForm, setInvestForm] = useState({
+    financial_year: "2025-2026",
+    category: "DPS",
+    amount: "0.00",
+    description: ""
+  });
+  const [investError, setInvestError] = useState<string | null>(null);
+
+  const [aitForm, setAitForm] = useState({
+    financial_year: "2025-2026",
+    category: "Car Registration",
+    amount: "0.00",
+    challan_number: "",
+    challan_date: "",
+    description: ""
+  });
+  const [aitError, setAitError] = useState<string | null>(null);
+
+  const [editingInvestId, setEditingInvestId] = useState<string | null>(null);
+  const [editingInvestForm, setEditingInvestForm] = useState({
+    category: "DPS",
+    amount: "0.00",
+    description: ""
+  });
+
+  const [editingAitId, setEditingAitId] = useState<string | null>(null);
+  const [editingAitForm, setEditingAitForm] = useState({
+    category: "Car Registration",
+    amount: "0.00",
+    challan_number: "",
+    challan_date: "",
+    description: ""
+  });
+
   // 1. Fetch current User Details
   const { data: user, isLoading: isUserLoading, isError: isUserError } = useQuery({
     queryKey: ["profile"],
@@ -115,7 +192,11 @@ export const Dashboard: React.FC = () => {
             date_of_joining: res.data.date_of_joining || "",
             nid: res.data.nid || "",
             tax_zone: res.data.tax_zone || "",
-            tax_circle: res.data.tax_circle || ""
+            tax_circle: res.data.tax_circle || "",
+            gender: res.data.gender || "Male",
+            is_disabled: res.data.is_disabled ?? false,
+            is_freedom_fighter: res.data.is_freedom_fighter ?? false,
+            location: res.data.location || "Dhaka/Chittagong City Corporation"
           });
         }
         return res.data;
@@ -166,6 +247,36 @@ export const Dashboard: React.FC = () => {
     queryFn: async () => {
       const res = await api.get("/salaries/certificates");
       return res.data;
+    },
+    enabled: !!employee
+  });
+
+  // Fetch Investments
+  const { data: investments, isLoading: isInvestmentsLoading } = useQuery({
+    queryKey: ["investments"],
+    queryFn: async () => {
+      const res = await api.get("/investments/investments");
+      return res.data as Investment[];
+    },
+    enabled: !!employee
+  });
+
+  // Fetch AIT records
+  const { data: aitRecords, isLoading: isAitLoading } = useQuery({
+    queryKey: ["aitRecords"],
+    queryFn: async () => {
+      const res = await api.get("/investments/ait");
+      return res.data as AITRecord[];
+    },
+    enabled: !!employee
+  });
+
+  // Fetch Rebate Summary
+  const { data: rebateSummary } = useQuery({
+    queryKey: ["rebateSummary"],
+    queryFn: async () => {
+      const res = await api.get("/investments/summary?financial_year=2025-2026");
+      return res.data as RebateSummary;
     },
     enabled: !!employee
   });
@@ -257,6 +368,19 @@ export const Dashboard: React.FC = () => {
     }
   });
 
+  const deleteSlipMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/salaries/slips/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salarySlips"] });
+      queryClient.invalidateQueries({ queryKey: ["salarySummary"] });
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.detail || "Failed to delete salary slip.");
+    }
+  });
+
   const uploadCertMutation = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
@@ -305,6 +429,118 @@ export const Dashboard: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["certificates"] });
+    }
+  });
+
+  // Investment mutations
+  const createInvestmentMutation = useMutation({
+    mutationFn: async (payload: typeof investForm) => {
+      const res = await api.post("/investments/investments", {
+        financial_year: payload.financial_year,
+        category: payload.category,
+        amount: parseFloat(payload.amount) || 0,
+        description: payload.description || null
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["investments"] });
+      queryClient.invalidateQueries({ queryKey: ["rebateSummary"] });
+      setInvestForm({
+        financial_year: "2025-2026",
+        category: "DPS",
+        amount: "0.00",
+        description: ""
+      });
+      setInvestError(null);
+    },
+    onError: (err: any) => {
+      setInvestError(err.response?.data?.detail || "Failed to save investment");
+    }
+  });
+
+  const updateInvestmentMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: typeof editingInvestForm }) => {
+      const res = await api.put(`/investments/investments/${id}`, {
+        category: payload.category,
+        amount: parseFloat(payload.amount) || 0,
+        description: payload.description || null
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["investments"] });
+      queryClient.invalidateQueries({ queryKey: ["rebateSummary"] });
+      setEditingInvestId(null);
+    }
+  });
+
+  const deleteInvestmentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/investments/investments/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["investments"] });
+      queryClient.invalidateQueries({ queryKey: ["rebateSummary"] });
+    }
+  });
+
+  // AIT mutations
+  const createAitMutation = useMutation({
+    mutationFn: async (payload: typeof aitForm) => {
+      const res = await api.post("/investments/ait", {
+        financial_year: payload.financial_year,
+        category: payload.category,
+        amount: parseFloat(payload.amount) || 0,
+        challan_number: payload.challan_number || null,
+        challan_date: payload.challan_date || null,
+        description: payload.description || null
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["aitRecords"] });
+      queryClient.invalidateQueries({ queryKey: ["rebateSummary"] });
+      setAitForm({
+        financial_year: "2025-2026",
+        category: "Car Registration",
+        amount: "0.00",
+        challan_number: "",
+        challan_date: "",
+        description: ""
+      });
+      setAitError(null);
+    },
+    onError: (err: any) => {
+      setAitError(err.response?.data?.detail || "Failed to save AIT record");
+    }
+  });
+
+  const updateAitMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: typeof editingAitForm }) => {
+      const res = await api.put(`/investments/ait/${id}`, {
+        category: payload.category,
+        amount: parseFloat(payload.amount) || 0,
+        challan_number: payload.challan_number || null,
+        challan_date: payload.challan_date || null,
+        description: payload.description || null
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["aitRecords"] });
+      queryClient.invalidateQueries({ queryKey: ["rebateSummary"] });
+      setEditingAitId(null);
+    }
+  });
+
+  const deleteAitMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/investments/ait/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["aitRecords"] });
+      queryClient.invalidateQueries({ queryKey: ["rebateSummary"] });
     }
   });
 
@@ -410,15 +646,25 @@ export const Dashboard: React.FC = () => {
               <Briefcase className="w-4 h-4" />
               Salary & Allowances
             </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-500 text-sm cursor-not-allowed opacity-60">
+            <button
+              onClick={() => setActiveTab("investments")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
+                activeTab === "investments"
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
+              }`}
+            >
               <TrendingUp className="w-4 h-4" />
-              Investments & Rebates
+              Investments & AIT
             </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-500 text-sm cursor-not-allowed opacity-60">
-              <FileSpreadsheet className="w-4 h-4" />
-              AIT Records
-            </button>
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-500 text-sm cursor-not-allowed opacity-60">
+            <button
+              onClick={() => setActiveTab("tax_calculator")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
+                activeTab === "tax_calculator"
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
+              }`}
+            >
               <Calculator className="w-4 h-4" />
               Tax Calculator
             </button>
@@ -460,12 +706,16 @@ export const Dashboard: React.FC = () => {
               {activeTab === "employee" && "Employee Profile Management"}
               {activeTab === "employers" && "Employer Directories"}
               {activeTab === "salary" && "Salary Components & Certificate"}
+              {activeTab === "investments" && "Investments & Tax Rebates"}
+              {activeTab === "tax_calculator" && "Income Tax Calculator"}
             </h1>
             <p className="text-sm text-gray-400 mt-1">
               {activeTab === "overview" && "Here is your tax overview for assessment year 2025-2026."}
               {activeTab === "employee" && "Setup and manage your job details and NBR tax circle connections."}
               {activeTab === "employers" && "View and register corporate employer groups."}
               {activeTab === "salary" && "Input monthly salary components, aggregate annual summaries, or verify salary certificates."}
+              {activeTab === "investments" && "Log eligible investments (DPS, Insurance, Stocks) and Advance Income Tax (AIT) records."}
+              {activeTab === "tax_calculator" && "Calculate dynamic tax projections, investment rebate optimization, and manage historical logs."}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -727,6 +977,56 @@ export const Dashboard: React.FC = () => {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-400 mb-1 text-sm">Gender</label>
+                      <select
+                        value={employeeForm.gender}
+                        onChange={(e) => setEmployeeForm({ ...employeeForm, gender: e.target.value })}
+                        className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Third Gender">Third Gender</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-400 mb-1 text-sm">Location (Min Tax Tier)</label>
+                      <select
+                        value={employeeForm.location}
+                        onChange={(e) => setEmployeeForm({ ...employeeForm, location: e.target.value })}
+                        className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                      >
+                        <option value="Dhaka/Chittagong City Corporation">Dhaka/Chittagong City Corporation</option>
+                        <option value="Other City Corporation">Other City Corporation</option>
+                        <option value="Outside City Corporation">Outside City Corporation</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 py-1">
+                    <label className="flex items-center gap-2 text-gray-300 cursor-pointer text-sm">
+                      <input
+                        type="checkbox"
+                        checked={employeeForm.is_disabled}
+                        onChange={(e) => setEmployeeForm({ ...employeeForm, is_disabled: e.target.checked })}
+                        className="w-4 h-4 rounded text-emerald-500 bg-gray-950/60 border-gray-800 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
+                      />
+                      <span>Is Person with Disability (PWD)</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-gray-300 cursor-pointer text-sm">
+                      <input
+                        type="checkbox"
+                        checked={employeeForm.is_freedom_fighter}
+                        onChange={(e) => setEmployeeForm({ ...employeeForm, is_freedom_fighter: e.target.checked })}
+                        className="w-4 h-4 rounded text-emerald-500 bg-gray-950/60 border-gray-800 focus:ring-emerald-500 focus:ring-offset-0 cursor-pointer"
+                      />
+                      <span>Is War-wounded Freedom Fighter</span>
+                    </label>
+                  </div>
+
                   <div>
                     <label className="block text-gray-400 mb-1">Link Corporate Employer</label>
                     <select
@@ -802,6 +1102,24 @@ export const Dashboard: React.FC = () => {
                     <span className="text-gray-500 text-xs block uppercase">Tax Circle</span>
                     <span className="text-white font-semibold text-base block mt-0.5">
                       {employee.tax_circle || "--"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 text-xs block uppercase">Gender</span>
+                    <span className="text-white font-semibold text-base block mt-0.5">
+                      {employee.gender || "Male"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 text-xs block uppercase">Location (Min Tax Tier)</span>
+                    <span className="text-white font-semibold text-base block mt-0.5">
+                      {employee.location || "Dhaka/Chittagong City Corporation"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 text-xs block uppercase">Special Status</span>
+                    <span className="text-white font-semibold text-base block mt-0.5">
+                      {employee.is_freedom_fighter ? "Freedom Fighter" : employee.is_disabled ? "Person with Disability (PWD)" : "None"}
                     </span>
                   </div>
                 </div>
@@ -1100,12 +1418,13 @@ export const Dashboard: React.FC = () => {
                               <th className="py-2.5 px-1 text-right">Bonus</th>
                               <th className="py-2.5 px-1 text-right">PF</th>
                               <th className="py-2.5 px-1 text-right">TDS (Tax)</th>
+                              <th className="py-2.5 px-1 text-center">Actions</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-800/50">
                             {salarySlips?.length === 0 ? (
                               <tr>
-                                <td colSpan={7} className="text-center py-8 text-gray-500">
+                                <td colSpan={8} className="text-center py-8 text-gray-500">
                                   No monthly slips logged yet. Click "+ Log Monthly Slip" to start.
                                 </td>
                               </tr>
@@ -1119,6 +1438,41 @@ export const Dashboard: React.FC = () => {
                                   <td className="py-3 px-1 text-right">৳{parseFloat(slip.festival_bonus).toLocaleString()}</td>
                                   <td className="py-3 px-1 text-right">৳{parseFloat(slip.provident_fund).toLocaleString()}</td>
                                   <td className="py-3 px-1 text-right text-amber-500">৳{parseFloat(slip.tax_deducted).toLocaleString()}</td>
+                                  <td className="py-3 px-1 text-center space-x-1">
+                                    <button
+                                      onClick={() => {
+                                        setSlipForm({
+                                          month: slip.month,
+                                          basic_salary: slip.basic_salary,
+                                          house_rent: slip.house_rent,
+                                          medical_allowance: slip.medical_allowance,
+                                          conveyance: slip.conveyance,
+                                          festival_bonus: slip.festival_bonus,
+                                          provident_fund: slip.provident_fund,
+                                          employer_provident_fund: slip.employer_provident_fund,
+                                          other_allowances: slip.other_allowances,
+                                          tax_deducted: slip.tax_deducted
+                                        });
+                                        setIsAddingSlip(true);
+                                      }}
+                                      className="p-1 hover:bg-gray-800 text-gray-400 hover:text-white rounded transition-colors cursor-pointer inline-flex"
+                                      title="Edit Slip"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (confirm(`Are you sure you want to delete the salary slip for ${slip.month}?`)) {
+                                          deleteSlipMutation.mutate(slip.id);
+                                        }
+                                      }}
+                                      disabled={deleteSlipMutation.isPending}
+                                      className="p-1 hover:bg-rose-500/10 text-rose-400 rounded transition-colors cursor-pointer disabled:opacity-50 inline-flex"
+                                      title="Delete Slip"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </td>
                                 </tr>
                               ))
                             )}
@@ -1578,6 +1932,696 @@ export const Dashboard: React.FC = () => {
               </>
             )}
           </div>
+        )}
+
+        {activeTab === "investments" && (
+          <div className="flex flex-col gap-6">
+            {!employee ? (
+              <div className="glass-panel p-8 text-center rounded-xl max-w-lg mx-auto">
+                <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+                <h3 className="text-lg font-bold text-white">Employee Profile Required</h3>
+                <p className="text-gray-400 text-sm mt-2 leading-relaxed">
+                  Please setup your basic job information inside the **Employee Info** tab before entering investments or AIT logs.
+                </p>
+                <button
+                  onClick={() => setActiveTab("employee")}
+                  className="mt-5 py-2 px-5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg transition-colors cursor-pointer"
+                >
+                  Setup Employee Profile
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Horizontal navigation menu */}
+                <div className="flex gap-2 border-b border-gray-800 pb-px">
+                  <button
+                    onClick={() => setInvestSubTab("eligible")}
+                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${
+                      investSubTab === "eligible"
+                        ? "border-emerald-500 text-emerald-400"
+                        : "border-transparent text-gray-500 hover:text-gray-300"
+                    }`}
+                  >
+                    Eligible Investments
+                  </button>
+                  <button
+                    onClick={() => setInvestSubTab("ait")}
+                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${
+                      investSubTab === "ait"
+                        ? "border-emerald-500 text-emerald-400"
+                        : "border-transparent text-gray-500 hover:text-gray-300"
+                    }`}
+                  >
+                    Advance Tax Paid (AIT)
+                  </button>
+                  <button
+                    onClick={() => setInvestSubTab("summary")}
+                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${
+                      investSubTab === "summary"
+                        ? "border-emerald-500 text-emerald-400"
+                        : "border-transparent text-gray-500 hover:text-gray-300"
+                    }`}
+                  >
+                    Tax Rebate Analytics
+                  </button>
+                </div>
+
+                {/* Eligible Investments Panel */}
+                {investSubTab === "eligible" && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Left List Column */}
+                    <div className="lg:col-span-2 glass-panel p-6 rounded-xl flex flex-col gap-4">
+                      <div className="flex justify-between items-center pb-3 border-b border-gray-800/50">
+                        <h3 className="text-lg font-bold text-white m-0">Eligible Investment Logs</h3>
+                      </div>
+
+                      {editingInvestId ? (
+                        /* Inline Edit Form */
+                        <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-lg flex flex-col gap-3">
+                          <h4 className="text-sm font-semibold text-emerald-400 m-0">Edit Investment Record</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-gray-400 text-xs mb-1">Category</label>
+                              <select
+                                value={editingInvestForm.category}
+                                onChange={(e) => setEditingInvestForm({ ...editingInvestForm, category: e.target.value })}
+                                className="w-full px-3 py-1.5 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                              >
+                                <option value="DPS">DPS (Deposit Pension Scheme)</option>
+                                <option value="Life Insurance">Life Insurance Premium</option>
+                                <option value="Sanchayapatra">Approved Savings Certificate</option>
+                                <option value="Stock Market">Stock Market / Mutual Funds</option>
+                                <option value="Other">Other Eligible Rebate Assets</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-gray-400 text-xs mb-1">Amount (BDT)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={editingInvestForm.amount}
+                                onChange={(e) => setEditingInvestForm({ ...editingInvestForm, amount: e.target.value })}
+                                className="w-full px-3 py-1.5 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 text-right"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-gray-400 text-xs mb-1">Description</label>
+                            <input
+                              type="text"
+                              value={editingInvestForm.description}
+                              onChange={(e) => setEditingInvestForm({ ...editingInvestForm, description: e.target.value })}
+                              className="w-full px-3 py-1.5 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div className="flex gap-2 justify-end pt-2">
+                            <button
+                              onClick={() => updateInvestmentMutation.mutate({
+                                id: editingInvestId,
+                                payload: editingInvestForm
+                              })}
+                              className="py-1.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-lg cursor-pointer transition-colors"
+                            >
+                              Save Changes
+                            </button>
+                            <button
+                              onClick={() => setEditingInvestId(null)}
+                              className="py-1.5 px-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold text-xs rounded-lg cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left text-gray-300">
+                          <thead className="text-[10px] uppercase text-gray-500 border-b border-gray-800">
+                            <tr>
+                              <th className="py-2.5 px-2">Financial Year</th>
+                              <th className="py-2.5 px-2">Category</th>
+                              <th className="py-2.5 px-2 text-right">Amount (BDT)</th>
+                              <th className="py-2.5 px-2">Description</th>
+                              <th className="py-2.5 px-2 text-center">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-800/40">
+                            {isInvestmentsLoading ? (
+                              <tr>
+                                <td colSpan={5} className="py-4 text-center text-gray-500">Loading investments data...</td>
+                              </tr>
+                            ) : !investments || investments.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="py-4 text-center text-gray-500">No investment records registered yet.</td>
+                              </tr>
+                            ) : (
+                              investments.map((inv) => (
+                                <tr key={inv.id} className="hover:bg-gray-800/10">
+                                  <td className="py-3 px-2 font-medium text-white">{inv.financial_year}</td>
+                                  <td className="py-3 px-2">
+                                    <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-semibold">
+                                      {inv.category}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-2 text-right font-bold text-white">
+                                    {Number(inv.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-3 px-2 text-gray-400">{inv.description || "—"}</td>
+                                  <td className="py-3 px-2 text-center">
+                                    <div className="flex justify-center gap-2">
+                                      <button
+                                        onClick={() => {
+                                          setEditingInvestId(inv.id);
+                                          setEditingInvestForm({
+                                            category: inv.category,
+                                            amount: String(inv.amount),
+                                            description: inv.description || ""
+                                          });
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-emerald-400 transition-colors cursor-pointer"
+                                      >
+                                        <Edit3 className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          if (confirm("Delete this investment log?")) {
+                                            deleteInvestmentMutation.mutate(inv.id);
+                                          }
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-red-400 transition-colors cursor-pointer"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Right Create Column */}
+                    <div className="glass-panel p-6 rounded-xl flex flex-col gap-4 h-fit">
+                      <h3 className="text-base font-bold text-white pb-3 border-b border-gray-800/50 m-0">Log Investment Asset</h3>
+                      
+                      {investError && (
+                        <div className="bg-red-950/20 border border-red-900/40 text-red-400 p-2.5 rounded-lg text-xs flex items-center gap-1.5">
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                          <span>{investError}</span>
+                        </div>
+                      )}
+
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          createInvestmentMutation.mutate(investForm);
+                        }}
+                        className="space-y-4 text-xs"
+                      >
+                        <div>
+                          <label className="block text-gray-400 mb-1">Financial Year</label>
+                          <select
+                            value={investForm.financial_year}
+                            onChange={(e) => setInvestForm({ ...investForm, financial_year: e.target.value })}
+                            className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                          >
+                            <option value="2025-2026">2025-2026</option>
+                            <option value="2026-2027">2026-2027</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-400 mb-1">Rebate Category</label>
+                          <select
+                            value={investForm.category}
+                            onChange={(e) => setInvestForm({ ...investForm, category: e.target.value })}
+                            className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                          >
+                            <option value="DPS">DPS (Deposit Pension Scheme)</option>
+                            <option value="Life Insurance">Life Insurance Premium</option>
+                            <option value="Sanchayapatra">Approved Savings Certificate</option>
+                            <option value="Stock Market">Stock Market / Mutual Funds</option>
+                            <option value="Other">Other Eligible Rebate Assets</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-400 mb-1">Investment Amount (BDT)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={investForm.amount}
+                            onChange={(e) => setInvestForm({ ...investForm, amount: e.target.value })}
+                            className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 text-right font-semibold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-400 mb-1">Description / Memo</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Sonali Bank DPS, policy #..."
+                            value={investForm.description}
+                            onChange={(e) => setInvestForm({ ...investForm, description: e.target.value })}
+                            className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={createInvestmentMutation.isPending}
+                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-semibold rounded-lg shadow cursor-pointer transition-colors"
+                        >
+                          {createInvestmentMutation.isPending ? "Logging..." : "Log Investment"}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                )}
+
+                {/* Advance Tax Paid (AIT) Panel */}
+                {investSubTab === "ait" && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Left AIT List */}
+                    <div className="lg:col-span-2 glass-panel p-6 rounded-xl flex flex-col gap-4">
+                      <div className="flex justify-between items-center pb-3 border-b border-gray-800/50">
+                        <h3 className="text-lg font-bold text-white m-0">Advance Tax Paid (AIT) Logs</h3>
+                      </div>
+
+                      {editingAitId ? (
+                        /* Inline AIT Edit Form */
+                        <div className="p-4 bg-gray-900/40 border border-gray-800 rounded-lg flex flex-col gap-3">
+                          <h4 className="text-sm font-semibold text-emerald-400 m-0">Edit AIT Record</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-gray-400 text-xs mb-1">Category</label>
+                              <select
+                                value={editingAitForm.category}
+                                onChange={(e) => setEditingAitForm({ ...editingAitForm, category: e.target.value })}
+                                className="w-full px-3 py-1.5 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                              >
+                                <option value="Car Registration">Car/Vehicle Fitness Renewal</option>
+                                <option value="Bank Interest TDS">Bank Interest Source Tax (TDS)</option>
+                                <option value="Property Transaction">Property Transaction / Deed Tax</option>
+                                <option value="Other">Other Advance Income Tax Payment</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-gray-400 text-xs mb-1">Amount (BDT)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={editingAitForm.amount}
+                                onChange={(e) => setEditingAitForm({ ...editingAitForm, amount: e.target.value })}
+                                className="w-full px-3 py-1.5 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 text-right"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-gray-400 text-xs mb-1">Challan / Receipt No.</label>
+                              <input
+                                type="text"
+                                value={editingAitForm.challan_number}
+                                onChange={(e) => setEditingAitForm({ ...editingAitForm, challan_number: e.target.value })}
+                                className="w-full px-3 py-1.5 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-gray-400 text-xs mb-1">Challan Date</label>
+                              <input
+                                type="date"
+                                value={editingAitForm.challan_date}
+                                onChange={(e) => setEditingAitForm({ ...editingAitForm, challan_date: e.target.value })}
+                                className="w-full px-3 py-1.5 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-gray-400 text-xs mb-1">Description</label>
+                            <input
+                              type="text"
+                              value={editingAitForm.description}
+                              onChange={(e) => setEditingAitForm({ ...editingAitForm, description: e.target.value })}
+                              className="w-full px-3 py-1.5 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div className="flex gap-2 justify-end pt-2">
+                            <button
+                              onClick={() => updateAitMutation.mutate({
+                                id: editingAitId,
+                                payload: editingAitForm
+                              })}
+                              className="py-1.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-lg cursor-pointer transition-colors"
+                            >
+                              Save Changes
+                            </button>
+                            <button
+                              onClick={() => setEditingAitId(null)}
+                              className="py-1.5 px-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold text-xs rounded-lg cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left text-gray-300">
+                          <thead className="text-[10px] uppercase text-gray-500 border-b border-gray-800">
+                            <tr>
+                              <th className="py-2.5 px-2">FY</th>
+                              <th className="py-2.5 px-2">Category</th>
+                              <th className="py-2.5 px-2 text-right">Amount (BDT)</th>
+                              <th className="py-2.5 px-2">Challan / Date</th>
+                              <th className="py-2.5 px-2">Description</th>
+                              <th className="py-2.5 px-2 text-center">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-800/40">
+                            {isAitLoading ? (
+                              <tr>
+                                <td colSpan={6} className="py-4 text-center text-gray-500">Loading AIT records...</td>
+                              </tr>
+                            ) : !aitRecords || aitRecords.length === 0 ? (
+                              <tr>
+                                <td colSpan={6} className="py-4 text-center text-gray-500">No Advance Tax records registered yet.</td>
+                              </tr>
+                            ) : (
+                              aitRecords.map((ait) => (
+                                <tr key={ait.id} className="hover:bg-gray-800/10">
+                                  <td className="py-3 px-2 font-medium text-white">{ait.financial_year}</td>
+                                  <td className="py-3 px-2">
+                                    <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-semibold">
+                                      {ait.category}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-2 text-right font-bold text-white">
+                                    {Number(ait.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-3 px-2 text-gray-300">
+                                    {ait.challan_number ? (
+                                      <div className="leading-tight">
+                                        <p className="m-0 font-medium">{ait.challan_number}</p>
+                                        <p className="m-0 text-[10px] text-gray-500">{ait.challan_date || "No date"}</p>
+                                      </div>
+                                    ) : "—"}
+                                  </td>
+                                  <td className="py-3 px-2 text-gray-400">{ait.description || "—"}</td>
+                                  <td className="py-3 px-2 text-center">
+                                    <div className="flex justify-center gap-2">
+                                      <button
+                                        onClick={() => {
+                                          setEditingAitId(ait.id);
+                                          setEditingAitForm({
+                                            category: ait.category,
+                                            amount: String(ait.amount),
+                                            challan_number: ait.challan_number || "",
+                                            challan_date: ait.challan_date || "",
+                                            description: ait.description || ""
+                                          });
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-emerald-400 transition-colors cursor-pointer"
+                                      >
+                                        <Edit3 className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          if (confirm("Delete this AIT record?")) {
+                                            deleteAitMutation.mutate(ait.id);
+                                          }
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-red-400 transition-colors cursor-pointer"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Right Create Column */}
+                    <div className="glass-panel p-6 rounded-xl flex flex-col gap-4 h-fit">
+                      <h3 className="text-base font-bold text-white pb-3 border-b border-gray-800/50 m-0">Log Advance Tax (AIT)</h3>
+                      
+                      {aitError && (
+                        <div className="bg-red-950/20 border border-red-900/40 text-red-400 p-2.5 rounded-lg text-xs flex items-center gap-1.5">
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                          <span>{aitError}</span>
+                        </div>
+                      )}
+
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          createAitMutation.mutate(aitForm);
+                        }}
+                        className="space-y-4 text-xs"
+                      >
+                        <div>
+                          <label className="block text-gray-400 mb-1">Financial Year</label>
+                          <select
+                            value={aitForm.financial_year}
+                            onChange={(e) => setAitForm({ ...aitForm, financial_year: e.target.value })}
+                            className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                          >
+                            <option value="2025-2026">2025-2026</option>
+                            <option value="2026-2027">2026-2027</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-400 mb-1">AIT Source Category</label>
+                          <select
+                            value={aitForm.category}
+                            onChange={(e) => setAitForm({ ...aitForm, category: e.target.value })}
+                            className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                          >
+                            <option value="Car Registration">Car/Vehicle Fitness Renewal</option>
+                            <option value="Bank Interest TDS">Bank Interest Source Tax (TDS)</option>
+                            <option value="Property Transaction">Property Transaction / Deed Tax</option>
+                            <option value="Other">Other Advance Income Tax Payment</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-400 mb-1">Amount Paid (BDT)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={aitForm.amount}
+                            onChange={(e) => setAitForm({ ...aitForm, amount: e.target.value })}
+                            className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500 text-right font-semibold"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-gray-400 mb-1">Challan / Receipt No.</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. CH-9988..."
+                              value={aitForm.challan_number}
+                              onChange={(e) => setAitForm({ ...aitForm, challan_number: e.target.value })}
+                              className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-400 mb-1">Challan Date</label>
+                            <input
+                              type="date"
+                              value={aitForm.challan_date}
+                              onChange={(e) => setAitForm({ ...aitForm, challan_date: e.target.value })}
+                              className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-400 mb-1">Description / Memo</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Sonali Bank, treasury challan..."
+                            value={aitForm.description}
+                            onChange={(e) => setAitForm({ ...aitForm, description: e.target.value })}
+                            className="w-full px-3 py-2 bg-gray-950/60 border border-gray-800 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={createAitMutation.isPending}
+                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-semibold rounded-lg shadow cursor-pointer transition-colors"
+                        >
+                          {createAitMutation.isPending ? "Logging..." : "Log AIT Payment"}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tax Rebate Analytics Panel */}
+                {investSubTab === "summary" && (
+                  <div className="flex flex-col gap-6">
+                    {/* Metrics Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div className="glass-panel p-5 rounded-xl bg-gradient-to-br from-emerald-950/20 to-gray-900 border-l-4 border-emerald-500">
+                        <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Total Eligible Invested</span>
+                        <h2 className="text-2xl font-bold text-white mt-1.5 mb-0.5">
+                          {Number(rebateSummary?.total_invested || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </h2>
+                        <span className="text-xs text-gray-500">BDT in current FY</span>
+                      </div>
+
+                      <div className="glass-panel p-5 rounded-xl bg-gradient-to-br from-indigo-950/20 to-gray-900 border-l-4 border-indigo-500">
+                        <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Total AIT Paid (TDS)</span>
+                        <h2 className="text-2xl font-bold text-white mt-1.5 mb-0.5">
+                          {Number(rebateSummary?.total_ait || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </h2>
+                        <span className="text-xs text-gray-500">Adjustable against net tax liability</span>
+                      </div>
+
+                      <div className="glass-panel p-5 rounded-xl bg-gradient-to-br from-purple-950/20 to-gray-900 border-l-4 border-purple-500">
+                        <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Est. Rebate Percentage</span>
+                        <h2 className="text-2xl font-bold text-white mt-1.5 mb-0.5">15%</h2>
+                        <span className="text-xs text-emerald-500 font-semibold">Of eligible investments limit</span>
+                      </div>
+
+                      <div className="glass-panel p-5 rounded-xl bg-gradient-to-br from-amber-950/20 to-gray-900 border-l-4 border-amber-500">
+                        <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Est. Rebate Amount</span>
+                        <h2 className="text-2xl font-bold text-emerald-400 mt-1.5 mb-0.5">
+                          {Number((rebateSummary?.total_invested || 0) * 0.15).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </h2>
+                        <span className="text-xs text-gray-500">Estimated rebate reduction</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* Breakdown panel */}
+                      <div className="lg:col-span-2 glass-panel p-6 rounded-xl flex flex-col gap-4">
+                        <h3 className="text-sm font-bold text-white pb-2 border-b border-gray-800 m-0">Investment Categories Breakdown</h3>
+                        
+                        <div className="space-y-4">
+                          {/* DPS bar */}
+                          <div>
+                            <div className="flex justify-between text-xs mb-1.5">
+                              <span className="text-gray-300">DPS (Deposit Pension Scheme)</span>
+                              <span className="font-bold text-white">
+                                {Number(rebateSummary?.dps_total || 0).toLocaleString()} / 1,20,000 BDT Max Limit
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-950 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min(100, ((rebateSummary?.dps_total || 0) / 120000) * 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+
+                          {/* Insurance bar */}
+                          <div>
+                            <div className="flex justify-between text-xs mb-1.5">
+                              <span className="text-gray-300">Life Insurance Premiums</span>
+                              <span className="font-bold text-white">
+                                {Number(rebateSummary?.life_insurance_total || 0).toLocaleString()} BDT
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-950 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-indigo-500 h-full rounded-full transition-all duration-500"
+                                style={{ width: `${rebateSummary?.life_insurance_total ? 100 : 0}%` }}
+                              ></div>
+                            </div>
+                          </div>
+
+                          {/* Sanchaya bar */}
+                          <div>
+                            <div className="flex justify-between text-xs mb-1.5">
+                              <span className="text-gray-300">Savings Certificates (Sanchayapatra)</span>
+                              <span className="font-bold text-white">
+                                {Number(rebateSummary?.sanchayapatra_total || 0).toLocaleString()} BDT
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-950 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-purple-500 h-full rounded-full transition-all duration-500"
+                                style={{ width: `${rebateSummary?.sanchayapatra_total ? 100 : 0}%` }}
+                              ></div>
+                            </div>
+                          </div>
+
+                          {/* Stocks bar */}
+                          <div>
+                            <div className="flex justify-between text-xs mb-1.5">
+                              <span className="text-gray-300">Listed Stocks & Mutual Funds</span>
+                              <span className="font-bold text-white">
+                                {Number(rebateSummary?.stock_market_total || 0).toLocaleString()} BDT
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-950 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-amber-500 h-full rounded-full transition-all duration-500"
+                                style={{ width: `${rebateSummary?.stock_market_total ? 100 : 0}%` }}
+                              ></div>
+                            </div>
+                          </div>
+
+                          {/* Other bar */}
+                          <div>
+                            <div className="flex justify-between text-xs mb-1.5">
+                              <span className="text-gray-300">Other Rebate eligible donations</span>
+                              <span className="font-bold text-white">
+                                {Number(rebateSummary?.other_investments_total || 0).toLocaleString()} BDT
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-950 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-gray-500 h-full rounded-full transition-all duration-500"
+                                style={{ width: `${rebateSummary?.other_investments_total ? 100 : 0}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Educational Rule Box */}
+                      <div className="glass-panel p-6 rounded-xl bg-gradient-to-br from-emerald-950/10 to-gray-900 border border-emerald-900/30 flex flex-col gap-3">
+                        <h3 className="text-sm font-bold text-emerald-400 m-0">NBR Tax Rebate Rules (FY 2025-26)</h3>
+                        <p className="text-xs text-gray-400 leading-relaxed m-0">
+                          Under the **Bangladesh Income Tax Act 2023**, a taxpayer is entitled to get a tax rebate equal to **15%** of the lower of the following:
+                        </p>
+                        <ol className="text-xs text-gray-400 space-y-1.5 pl-4 m-0 list-decimal">
+                          <li>Actual total eligible investments.</li>
+                          <li>**3% of Total Taxable Income** (without rebate).</li>
+                          <li>**BDT 10,00,000 (10 Lakh)**.</li>
+                        </ol>
+                        <div className="text-[10px] text-gray-500 border-t border-gray-800/80 pt-2.5 mt-1 leading-snug">
+                          * Note: DPS eligible amount is capped at a maximum of BDT 1,20,000 per financial year.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {activeTab === "tax_calculator" && (
+          <TaxCalculatorPanel
+            employee={employee}
+            onNavigateToProfile={() => setActiveTab("employee")}
+            onNavigateToInvestments={() => setActiveTab("investments")}
+          />
         )}
       </main>
     </div>
