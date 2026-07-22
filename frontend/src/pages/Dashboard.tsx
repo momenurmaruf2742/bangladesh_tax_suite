@@ -619,6 +619,21 @@ export const Dashboard: React.FC = () => {
     }
   });
 
+  const toggleUserStatusMutation = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      const res = await api.put(`/users/admin/${userId}/status`, { is_active: isActive });
+      return res.data;
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
+      alert(`✅ Account status for ${data.email} updated to ${data.is_active ? "Active (Approved)" : "Pending/Suspended"}!`);
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.detail || "Failed to update user account status.");
+    }
+  });
+
+
   const handleLogout = async () => {
     try {
       const refreshToken = tokenStorage.getRefreshToken();
@@ -2887,7 +2902,7 @@ export const Dashboard: React.FC = () => {
                         <th className="py-2.5 px-2">Email</th>
                         <th className="py-2.5 px-2">Phone</th>
                         <th className="py-2.5 px-2">Account Role</th>
-                        <th className="py-2.5 px-2 text-center">Status</th>
+                        <th className="py-2.5 px-2 text-center">Status & Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-800/50">
@@ -2919,7 +2934,31 @@ export const Dashboard: React.FC = () => {
                               </span>
                             </td>
                             <td className="py-3 px-2 text-center">
-                              <span className="text-emerald-400 text-[11px] font-bold">● Active</span>
+                              {u.is_active ? (
+                                <div className="flex items-center justify-center gap-2">
+                                  <span className="text-emerald-400 text-[11px] font-bold">● Active</span>
+                                  {u.role !== "SuperAdmin" && (
+                                    <button
+                                      onClick={() => toggleUserStatusMutation.mutate({ userId: u.id, isActive: false })}
+                                      disabled={toggleUserStatusMutation.isPending}
+                                      className="text-[10px] px-2 py-0.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700 transition-colors cursor-pointer"
+                                    >
+                                      Suspend
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-center gap-2">
+                                  <span className="text-amber-400 text-[11px] font-bold">● Pending Approval</span>
+                                  <button
+                                    onClick={() => toggleUserStatusMutation.mutate({ userId: u.id, isActive: true })}
+                                    disabled={toggleUserStatusMutation.isPending}
+                                    className="text-[10px] px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded shadow transition-colors cursor-pointer"
+                                  >
+                                    Approve Account
+                                  </button>
+                                </div>
+                              )}
                             </td>
                           </tr>
                         ))

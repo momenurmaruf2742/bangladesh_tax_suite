@@ -63,6 +63,16 @@ class UserService:
     async def get_all_users(self) -> list[User]:
         return await self.repo.get_all_users()
 
+    async def update_user_status(self, user_id: uuid.UUID, is_active: bool) -> User:
+        user = await self.repo.update_status(user_id, is_active)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        return user
+
+
 
     async def get_user_by_id(self, user_id: uuid.UUID) -> User:
         user = await self.repo.get_by_id(user_id)

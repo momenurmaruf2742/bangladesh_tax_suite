@@ -35,6 +35,11 @@ class UserRepository:
 
     async def create(self, user_create: UserCreate, hashed_password: str) -> User:
         """Create and persist a new user."""
+        role = getattr(user_create, "role", "Employee") or "Employee"
+        # Individuals (Employee) are auto-approved (is_active=True).
+        # Companies (Admin) and CA Firms (CA) require Super Admin approval (is_active=False).
+        is_active = True if role in ["Employee", "SuperAdmin"] else False
+
         db_user = User(
             email=user_create.email,
             phone=user_create.phone,
@@ -42,13 +47,23 @@ class UserRepository:
             last_name=user_create.last_name,
             tin=user_create.tin,
             password_hash=hashed_password,
-            is_active=True,
+            is_active=is_active,
             is_verified=False,
-            role=getattr(user_create, "role", "Employee") or "Employee"
+            role=role
         )
         self.db.add(db_user)
         await self.db.flush()  # Populates ID and defaults
         return db_user
+
+    async def update_status(self, user_id: uuid.UUID, is_active: bool) -> User | None:
+        """Approve or suspend a user account."""
+        user = await self.get_by_id(user_id)
+        if user:
+            user.is_active = is_active
+            self.db.add(user)
+            await self.db.flush()
+        return user
+
 
     async def get_all_users(self) -> list[User]:
         """Fetch all users for Super Admin oversight."""

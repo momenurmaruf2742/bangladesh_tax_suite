@@ -18,11 +18,15 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
 
+    OVERRIDE_DATABASE_URL: str | None = Field(default=None, validation_alias="DATABASE_URL")
+
     @computed_field
     @property
     def DATABASE_URL(self) -> str:
-        # Use asyncpg for async SQLModel/SQLAlchemy
+        if self.OVERRIDE_DATABASE_URL:
+            return self.OVERRIDE_DATABASE_URL
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+
 
     @computed_field
     @property

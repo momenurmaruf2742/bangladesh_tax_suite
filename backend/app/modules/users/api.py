@@ -8,6 +8,13 @@ from app.modules.users.service import UserService
 router = APIRouter(tags=["Users Oversight"])
 
 
+import uuid
+from pydantic import BaseModel
+
+class UserStatusUpdate(BaseModel):
+    is_active: bool
+
+
 @router.get("/admin/all", response_model=list[UserResponse])
 async def get_all_users(
     current_user: UserResponse = Depends(get_current_user),
@@ -21,3 +28,21 @@ async def get_all_users(
         )
     user_service = UserService(db)
     return await user_service.get_all_users()
+
+
+@router.put("/admin/{user_id}/status", response_model=UserResponse)
+async def update_user_status(
+    user_id: uuid.UUID,
+    status_in: UserStatusUpdate,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Approve or suspend a user account (Super Admin only)."""
+    if current_user.role not in ["SuperAdmin", "Admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access restricted to platform administrators."
+        )
+    user_service = UserService(db)
+    return await user_service.update_user_status(user_id, status_in.is_active)
+

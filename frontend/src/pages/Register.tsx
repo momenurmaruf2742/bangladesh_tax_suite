@@ -107,8 +107,12 @@ export const Register: React.FC = () => {
 
         {success && (
           <div className="mb-6 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-200 text-sm flex items-start gap-3">
-            <CheckCircle className="w-5 h-5 shrink-0 mt-0.5 animate-bounce" />
-            <span>Registration successful! Redirecting to login...</span>
+            <CheckCircle className="w-5 h-5 shrink-0 mt-0.5 animate-bounce text-emerald-400" />
+            <span>
+              {selectedRole === "Employee"
+                ? "Registration successful! Redirecting to login..."
+                : "Registration submitted! Company & CA accounts require Super Admin approval before login. Redirecting..."}
+            </span>
           </div>
         )}
 
