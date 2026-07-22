@@ -23,6 +23,17 @@ async_session_maker = sessionmaker(
 
 async def init_db() -> None:
     """Initialize database tables and ensure schema updates for existing tables."""
+    # Import all models to populate SQLModel metadata
+    try:
+        import app.modules.users.model  # noqa
+        import app.modules.employers.model  # noqa
+        import app.modules.employees.model  # noqa
+        import app.modules.salaries.model  # noqa
+        import app.modules.investments.model  # noqa
+        import app.modules.taxes.model  # noqa
+    except Exception:
+        pass
+
     async with engine.begin() as conn:
         # Create all tables if they do not exist
         await conn.run_sync(SQLModel.metadata.create_all)
