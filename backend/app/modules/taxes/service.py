@@ -177,23 +177,35 @@ class TaxService:
                 )
             )
 
-        # 5. Investment & Rebate calculation
+        # 5. Investment & Rebate calculation (Income Tax Act 2023, Section 78)
         # Fetch logged investments
         invest_logs = await self.invest_repo.get_investments_by_employee(employee_id)
-        logged_investments = sum(inv.amount for inv in invest_logs if inv.financial_year == financial_year)
+        
+        # Apply category specific limits (e.g. DPS allowable limit is 1,20,000 BDT/year under NBR rules)
+        logged_investments = Decimal("0.0")
+        for inv in invest_logs:
+            if inv.financial_year == financial_year:
+                if inv.category == "DPS":
+                    logged_investments += min(inv.amount, Decimal("120000.00"))
+                else:
+                    logged_investments += inv.amount
 
         # Total invested includes actual logged investments + PF contributions from salary
         total_invested = logged_investments + pf_salary
 
-        # Rebate limit is the minimum of:
-        # 1. Total actual invested
+        # Max eligible investment for rebate (20% of taxable income or 66.66 Lakhs BDT)
+        max_eligible_invest = min(total_taxable_income * Decimal("0.20"), Decimal("6666666.67"))
+        eligible_investment = min(total_invested, max_eligible_invest)
+        
+        # Rebate is lower of:
+        # 1. 15% of eligible investment
         # 2. 3% of total taxable income
         # 3. 10,00,000 BDT (10 Lakhs)
-        rebate_limit_income = total_taxable_income * Decimal("0.03")
-        eligible_investment = min(total_invested, rebate_limit_income, Decimal("1000000.00"))
+        rebate_by_invest = eligible_investment * Decimal("0.15")
+        rebate_by_income = total_taxable_income * Decimal("0.03")
         
-        # Rebate rate is 15% under Bangladeshi rules
-        investment_rebate = eligible_investment * Decimal("0.15")
+        investment_rebate = min(rebate_by_invest, rebate_by_income, Decimal("1000000.00"))
+
 
         # 6. Minimum Tax rule
         minimum_tax = Decimal("0.0")

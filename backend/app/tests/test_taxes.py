@@ -6,8 +6,8 @@ from httpx import AsyncClient
 async def test_tax_engine_workflow(client: AsyncClient):
     # 1. Register and login a standard user
     register_payload = {
-        "email": "tax.user@example.com",
-        "phone": "+8801744444444",
+        "email": "unique_tax_engine_user@example.com",
+        "phone": "+8801799999999",
         "first_name": "Tax",
         "last_name": "Tester",
         "password": "strongpassword"
@@ -15,7 +15,7 @@ async def test_tax_engine_workflow(client: AsyncClient):
     await client.post("/api/v1/auth/register", json=register_payload)
     
     login_res = await client.post("/api/v1/auth/login", json={
-        "username": "tax.user@example.com",
+        "username": "unique_tax_engine_user@example.com",
         "password": "strongpassword"
     })
     token = login_res.json()["access_token"]
@@ -59,7 +59,8 @@ async def test_tax_engine_workflow(client: AsyncClient):
         "amount": "120000.00",
         "description": "DPS log"
     }
-    await client.post("/api/v1/investments", json=inv_payload, headers=headers)
+    res_inv = await client.post("/api/v1/investments/investments", json=inv_payload, headers=headers)
+    assert res_inv.status_code == 201
 
     # 5. Add AIT paid logs
     # 15,000 BDT AIT
@@ -70,7 +71,9 @@ async def test_tax_engine_workflow(client: AsyncClient):
         "challan_number": "CH-12345",
         "description": "Car tax"
     }
-    await client.post("/api/v1/investments/ait", json=ait_payload, headers=headers)
+    res_ait = await client.post("/api/v1/investments/ait", json=ait_payload, headers=headers)
+    assert res_ait.status_code == 201
+
 
     # 6. Run Dynamic Tax Calculation endpoint
     # We have 5 months of slips:
@@ -106,12 +109,13 @@ async def test_tax_engine_workflow(client: AsyncClient):
     # PF (5 months) = 5k employee + 5k employer = 10k monthly = 50,000 BDT total PF.
     # Logged investments = 120,000 BDT.
     # Total invested = 170,000 BDT.
-    # Eligible investment = min(170,000 BDT, 3% of 600,000 BDT = 18,000 BDT, 10 Lakhs BDT) = 18,000 BDT.
-    # Investment rebate = 15% of 18,000 = 2,700 BDT.
-    # Gross tax after rebate = 15,000 - 2,700 = 12,300 BDT.
-    # Net tax (since 12,300 > minimum tax 5,000) = 12,300 BDT.
+    # Max eligible investment (20% of 600,000 BDT) = 120,000 BDT.
+    # Eligible investment = min(170,000, 120,000) = 120,000 BDT.
+    # Investment rebate = min(15% of 120,000 = 18,000 BDT, 3% of 600,000 = 18,000 BDT, 10 Lakhs BDT) = 18,000 BDT.
+    # Gross tax after rebate = max(0, 15,000 - 18,000) = 0 BDT.
+    # Net tax (since gross tax after rebate is 0, local minimum tax of 5,000 BDT applies) = 5,000 BDT.
     # AIT adjustable: AIT paid = 15,000 BDT. TDS salary = 10,000 BDT. Total adjust = 25,000 BDT.
-    # Final payable = 12,300 - 25,000 = -12,700 BDT (Refundable).
+    # Final payable = 5,000 - 25,000 = -20,000 BDT (Refundable).
     calc_payload_other = {
         "financial_year": "2025-2026",
         "other_income": "250000.00"
@@ -121,13 +125,14 @@ async def test_tax_engine_workflow(client: AsyncClient):
     data = res.json()
     assert float(data["summary"]["total_taxable_income"]) == 600000.0
     assert float(data["summary"]["gross_tax"]) == 15000.0
-    assert float(data["summary"]["eligible_investment"]) == 18000.0
-    assert float(data["summary"]["investment_rebate"]) == 2700.0
+    assert float(data["summary"]["eligible_investment"]) == 120000.0
+    assert float(data["summary"]["investment_rebate"]) == 18000.0
     assert float(data["summary"]["minimum_tax"]) == 5000.0
-    assert float(data["summary"]["net_tax"]) == 12300.0
+    assert float(data["summary"]["net_tax"]) == 5000.0
     assert float(data["summary"]["ait_paid"]) == 15000.0
     assert float(data["summary"]["tds_salary"]) == 10000.0
-    assert float(data["summary"]["final_payable"]) == -12700.0
+    assert float(data["summary"]["final_payable"]) == -20000.0
+
 
     # 8. Calculate and Save calculation
     res = await client.post("/api/v1/taxes/calculate-save", json=calc_payload_other, headers=headers)

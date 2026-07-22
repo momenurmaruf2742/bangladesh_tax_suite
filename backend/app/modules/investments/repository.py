@@ -41,7 +41,8 @@ class InvestmentRepository:
             description=invest_create.description
         )
         self.db.add(db_invest)
-        await self.db.flush()
+        await self.db.commit()
+        await self.db.refresh(db_invest)
         return db_invest
 
     async def update_investment(self, db_invest: Investment, invest_update: InvestmentUpdate) -> Investment:
@@ -49,12 +50,13 @@ class InvestmentRepository:
         for key, value in update_data.items():
             setattr(db_invest, key, value)
         self.db.add(db_invest)
-        await self.db.flush()
+        await self.db.commit()
+        await self.db.refresh(db_invest)
         return db_invest
 
     async def delete_investment(self, db_invest: Investment) -> None:
         await self.db.delete(db_invest)
-        await self.db.flush()
+        await self.db.commit()
 
     # AIT Methods
     async def get_ait_by_id(self, ait_id: uuid.UUID) -> AITRecord | None:
@@ -85,7 +87,8 @@ class InvestmentRepository:
             description=ait_create.description
         )
         self.db.add(db_ait)
-        await self.db.flush()
+        await self.db.commit()
+        await self.db.refresh(db_ait)
         return db_ait
 
     async def update_ait(self, db_ait: AITRecord, ait_update: AITRecordUpdate) -> AITRecord:
@@ -93,9 +96,11 @@ class InvestmentRepository:
         for key, value in update_data.items():
             setattr(db_ait, key, value)
         self.db.add(db_ait)
-        await self.db.flush()
+        await self.db.commit()
+        await self.db.refresh(db_ait)
         return db_ait
 
     async def delete_ait(self, db_ait: AITRecord) -> None:
         await self.db.delete(db_ait)
-        await self.db.flush()
+        await self.db.commit()
+

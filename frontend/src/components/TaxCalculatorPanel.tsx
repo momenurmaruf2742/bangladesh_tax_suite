@@ -330,11 +330,14 @@ export const TaxCalculatorPanel: React.FC<TaxCalculatorPanelProps> = ({
               {(() => {
                 const totalTaxable = Number(calcResult.summary.total_taxable_income) || 0;
                 const currentInvested = Number(calcResult.summary.total_invested) || 0;
-                const maxInvestLimit = Math.min(totalTaxable * 0.03, 1000000);
-                const remainingToInvest = maxInvestLimit - currentInvested;
+                const maxInvestLimit = Math.min(totalTaxable * 0.20, 6666666.67);
+                const currentRebate = Number(calcResult.summary.investment_rebate) || 0;
+                const maxRebateCap = Math.min(totalTaxable * 0.03, 1000000);
+                const remainingRebateCap = Math.max(0, maxRebateCap - currentRebate);
+                const remainingToInvest = Math.max(0, maxInvestLimit - currentInvested);
                 
-                if (remainingToInvest > 100 && totalTaxable > 0) {
-                  const possibleExtraRebate = remainingToInvest * 0.15;
+                if (remainingToInvest > 100 && remainingRebateCap > 1 && totalTaxable > 0) {
+                  const possibleExtraRebate = Math.min(remainingToInvest * 0.15, remainingRebateCap);
                   return (
                     <div className="glass-panel p-5 rounded-xl border border-emerald-500/20 bg-gradient-to-r from-emerald-950/10 to-gray-950 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                       <div className="space-y-1">
