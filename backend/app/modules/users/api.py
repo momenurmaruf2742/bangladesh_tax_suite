@@ -21,10 +21,10 @@ async def get_all_users(
     db: AsyncSession = Depends(get_db)
 ):
     """Retrieve all users for Super Admin dashboard."""
-    if current_user.role not in ["SuperAdmin", "Admin"]:
+    if current_user.role != "SuperAdmin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access restricted to platform administrators."
+            detail="Access restricted to Super Admin only."
         )
     user_service = UserService(db)
     return await user_service.get_all_users()
@@ -38,10 +38,10 @@ async def update_user_status(
     db: AsyncSession = Depends(get_db)
 ):
     """Approve or suspend a user account (Super Admin only)."""
-    if current_user.role not in ["SuperAdmin", "Admin"]:
+    if current_user.role != "SuperAdmin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access restricted to platform administrators."
+            detail="Access restricted to Super Admin only."
         )
     user_service = UserService(db)
     return await user_service.update_user_status(user_id, status_in.is_active)

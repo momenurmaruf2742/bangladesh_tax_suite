@@ -759,7 +759,7 @@ export const Dashboard: React.FC = () => {
               Tax Calculator
             </button>
 
-            {(user.role === "SuperAdmin" || user.role === "Admin") && (
+            {user.role === "SuperAdmin" && (
               <button
                 onClick={() => setActiveTab("admin_center")}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
