@@ -1,10 +1,9 @@
-# Installation Guide
+# Installation & Setup Guide
 
-This guide explains how to install and run the Bangladesh Tax Suite project locally and inside Docker.
+This guide explains how to deploy the Bangladesh Tax Suite using Docker Compose or for local development.
 
 ## Prerequisites
 
-Ensure you have the following installed:
 - [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/install/)
 - [Python 3.12+](https://www.python.org/downloads/)
 - [Node.js v18+](https://nodejs.org/)
@@ -13,39 +12,42 @@ Ensure you have the following installed:
 
 ## 🐳 Docker Deployment (Recommended)
 
-To launch the entire stack (PostgreSQL, Redis, FastAPI, and React Vite) in containerized mode:
+To launch the complete containerized stack (PostgreSQL, Redis, FastAPI Backend, React Frontend):
 
-1. Clone the repository:
+1. Clone the repository and navigate to root:
    ```bash
    git clone <repo-url>
    cd bangladesh-tax-suite
    ```
 
-2. Start the services:
+2. Build and start containers:
    ```bash
    docker compose up --build
    ```
 
-3. Access the interfaces:
+3. Provision default Super Admin and Test User accounts in Docker database:
+   ```bash
+   docker compose exec backend python /app/scripts/setup_accounts.py
+   ```
+
+4. Access the applications:
    - **Frontend App**: [http://localhost:5173](http://localhost:5173)
    - **FastAPI Documentation (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
-   - **Alternative API Docs (ReDoc)**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+   - **Alternative ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 ---
 
 ## 💻 Local Development Setup
 
-If you prefer to run services locally without Docker:
-
 ### 1. Database & Cache Services
 Ensure PostgreSQL is running locally on port `5432` with a database named `tax_db` and Redis is running on port `6379`.
 
 ### 2. Backend Setup
-1. Move to the backend folder:
+1. Move to backend folder:
    ```bash
    cd backend
    ```
-2. Create and activate a virtual environment:
+2. Create and activate virtual environment:
    ```bash
    python3 -m venv .venv
    source .venv/bin/activate
@@ -54,27 +56,29 @@ Ensure PostgreSQL is running locally on port `5432` with a database named `tax_d
    ```bash
    pip install -r requirements.txt
    ```
-4. Copy the environment variables template and customize:
+4. Copy environment configuration:
    ```bash
    cp .env.example .env
    ```
-5. Run the FastAPI development server:
+5. Provision test accounts:
    ```bash
-   python main.py
+   python scripts/setup_accounts.py
    ```
-   The backend will be live on [http://localhost:8000](http://localhost:8000).
+6. Run server:
+   ```bash
+   python app/main.py
+   ```
 
 ### 3. Frontend Setup
-1. Move to the frontend folder:
+1. Move to frontend folder:
    ```bash
    cd ../frontend
    ```
-2. Install Node dependencies:
+2. Install dependencies:
    ```bash
    npm install
    ```
-3. Start the Vite React development server:
+3. Start Vite dev server:
    ```bash
    npm run dev
    ```
-   The frontend will be live on [http://localhost:5173](http://localhost:5173).

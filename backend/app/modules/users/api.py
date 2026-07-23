@@ -1,5 +1,8 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
+
 from app.db.database import get_db
 from app.modules.auth.dependencies import get_current_user
 from app.modules.users.schema import UserResponse
@@ -7,9 +10,6 @@ from app.modules.users.service import UserService
 
 router = APIRouter(tags=["Users Oversight"])
 
-
-import uuid
-from pydantic import BaseModel
 
 class UserStatusUpdate(BaseModel):
     is_active: bool
@@ -45,4 +45,3 @@ async def update_user_status(
         )
     user_service = UserService(db)
     return await user_service.update_user_status(user_id, status_in.is_active)
-

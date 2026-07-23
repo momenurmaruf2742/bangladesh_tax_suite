@@ -1,56 +1,50 @@
 # System Architecture
 
-The Bangladesh Tax Suite follows a **Clean Architecture + Modular Monolith** structure designed to scale while keeping components decoupled.
+The Bangladesh Tax Suite follows a **Clean Architecture + Modular Monolith** structure designed for scalable SaaS applications.
 
 ## Architecture Diagram
 
 ```mermaid
 graph TD
-    Client[React Frontend] -->|HTTP Request| API[FastAPI Routing API]
-    API -->|Validation & Call| Service[Service Layer - Business Logic]
-    Service -->|Data Query| Repo[Repository Layer - DB Access]
-    Repo -->|ORM Models| DB[(PostgreSQL)]
-    Service -->|Token Blacklist / Cache| Cache[(Redis Cache)]
+    Client[React Frontend - Vite/Tailwind/Recharts] -->|HTTP/REST| API[FastAPI Routing Layer]
+    API -->|Schema Validation| Service[Service Layer - Business Logic]
+    Service -->|NBR Act 2023 Rules| TaxEngine[Tax & Rebate Calculation Engine]
+    Service -->|PDF & Excel Build| Reports[Report & OCR Engine - ReportLab/OpenPyXL/PyPDF]
+    Service -->|AI Advisory| AiAssistant[AI Assistant Engine]
+    Service -->|Queries| Repo[Repository Layer - SQLModel ORM]
+    Repo -->|Async Driver| DB[(PostgreSQL Database)]
+    Service -->|Token Blacklist| Cache[(Redis Cache)]
 ```
 
 ## Layers of the Monolith
 
-1. **API Router Layer (`app/api/` or `app/modules/*/api.py`)**
-   - Handles HTTP routing, input validation (using Pydantic), and HTTP exceptions.
-   - Inject dependencies such as DB sessions and authenticated users.
+1. **API Router Layer (`app/modules/*/api.py`)**
+   - Handles REST HTTP routing, request validation via Pydantic v2, and access control dependencies (`get_current_user`).
 
 2. **Service Layer (`app/modules/*/service.py`)**
-   - Implements the core business logic.
-   - Aggregates database actions and controls transaction lifecycles.
-   - Throws semantic exceptions that the API layer translates to HTTP responses.
+   - Contains business logic (Tax slab calculations, 15% Section 78 rebate caps, OCR regex PDF text extraction, AI Tax advice, ReportLab PDF rendering).
 
 3. **Repository Layer (`app/modules/*/repository.py`)**
-   - Manages raw database queries (via SQLModel).
-   - Keeps DB operations testable and isolated from business rules.
+   - Encapsulates database CRUD operations using SQLModel and SQLAlchemy AsyncSession.
 
-4. **Model/Schema Layer (`app/modules/*/model.py`, `schema.py`)**
-   - `model.py` maps database tables.
-   - `schema.py` defines Pydantic validation structures for request and response formats.
+4. **Model & Schema Layer (`model.py`, `schema.py`)**
+   - `model.py` defines database table entities.
+   - `schema.py` defines type-safe Pydantic request/response validation schemas.
 
-## Folder Organization
+---
+
+## Domain Modules Structure
 
 ```text
-bangladesh-tax-suite/
-├── backend/
-│   ├── app/
-│   │   ├── core/         # Settings, JWT, security configuration
-│   │   ├── db/           # Session management, SQLModel engines
-│   │   ├── modules/      # Domain modules (Auth, Users, Employee, etc.)
-│   │   │   ├── auth/     # Login, refresh token, session routes
-│   │   │   └── users/    # User profiles, CRUD operations
-│   │   ├── utils/        # Generic tools (Redis client, logger)
-│   │   └── main.py       # FastAPI application initialisation
-│   └── tests/            # Test suite (conftest, integration cases)
-├── frontend/
-│   ├── src/
-│   │   ├── components/   # Shared presentation elements (Loader, guards)
-│   │   ├── pages/        # Router page components (Login, Dashboard)
-│   │   ├── services/     # Axios client configuration and interceptors
-│   │   └── App.tsx       # Routing logic
-└── docker/               # Container configs (Nginx, postgres, etc.)
+backend/app/modules/
+├── auth/          # JWT Login, Multi-Role Register, Refresh Token, Logout
+├── users/         # Super Admin Oversight, User status approval/suspension
+├── employers/     # Corporate employer registrations and company directories
+├── employees/     # Employee job profiles, tax zone/circle, NID info
+├── salaries/      # Monthly salary slips, PDF payslips, annual summary
+├── investments/   # DPS, Sanchayapatra, Insurance, AIT Challan tracking
+├── taxes/         # Income Tax Act 2023 engine, Form 108 / Return HTML viewer
+├── reports/       # ReportLab PDF return exporter & OpenPyXL Excel exporter
+├── ocr/           # PyPDF OCR text parser for uploaded salary PDFs
+└── ai/            # AI Tax Advisory Assistant based on Act 2023 regulations
 ```

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import uvicorn
 from fastapi import FastAPI, Depends, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import select
@@ -7,11 +8,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 from app.db.database import init_db, get_db
 from app.modules.auth.api import router as auth_router
+from app.modules.users.api import router as user_router
 from app.modules.employers.api import router as employer_router
 from app.modules.employees.api import router as employee_router
 from app.modules.salaries.api import router as salary_router
 from app.modules.investments.api import router as investment_router
 from app.modules.taxes.api import router as tax_router
+from app.modules.reports.api import router as reports_router
+from app.modules.ocr.api import router as ocr_router
+from app.modules.ai.api import router as ai_router
 from app.utils.redis import redis_client
 
 
@@ -94,12 +99,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     return health_status
 
 
-from app.modules.users.api import router as user_router
-from app.modules.reports.api import router as reports_router
-from app.modules.ocr.api import router as ocr_router
-from app.modules.ai.api import router as ai_router
-
-# Register Router
+# Register Routers
 app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth")
 app.include_router(user_router, prefix=f"{settings.API_V1_STR}/users")
 app.include_router(employer_router, prefix=f"{settings.API_V1_STR}/employers")
@@ -112,7 +112,5 @@ app.include_router(ocr_router, prefix=f"{settings.API_V1_STR}/ocr")
 app.include_router(ai_router, prefix=f"{settings.API_V1_STR}/ai")
 
 
-
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
