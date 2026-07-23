@@ -5,6 +5,20 @@ import { api, tokenStorage } from "../services/api";
 import { Loader } from "../components/Loader";
 import { TaxCalculatorPanel } from "../components/TaxCalculatorPanel";
 import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid
+} from "recharts";
+import { AiTaxAssistantDrawer } from "../components/AiTaxAssistantDrawer";
+import {
   LayoutDashboard,
   Users,
   Briefcase,
@@ -16,7 +30,6 @@ import {
   Scale,
   Activity,
   Calculator,
-  Bell,
   Mail,
   Phone,
   Building,
@@ -27,7 +40,12 @@ import {
   UploadCloud,
   Trash2,
   Edit3,
-  Crown
+  Crown,
+  Download,
+  FileSpreadsheet,
+  Bot,
+  Sparkles,
+  Scan
 } from "lucide-react";
 
 interface Investment {
@@ -73,6 +91,69 @@ export const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"overview" | "employee" | "employers" | "salary" | "investments" | "tax_calculator" | "admin_center">("overview");
   const [salarySubTab, setSalarySubTab] = useState<"slips" | "summary" | "certificate">("slips");
   const [investSubTab, setInvestSubTab] = useState<"eligible" | "ait" | "summary">("eligible");
+  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+
+  const handleDownloadPdfReturn = async () => {
+    try {
+      const res = await api.get("/reports/tax-return/pdf", { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `Tax_Return_Summary_2025-2026.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err: any) {
+      alert("Failed to generate PDF Return. Please ensure your employee and salary details are set up.");
+    }
+  };
+
+  const handleDownloadSalaryExcel = async () => {
+    try {
+      const res = await api.get("/reports/salary/excel", { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `Salary_Statement_2025-2026.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err: any) {
+      alert("Failed to export Excel report.");
+    }
+  };
+
+  const handleOcrSalaryPdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsOcrLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await api.post("/ocr/parse-salary-pdf", formData, {
+        headers: { "Content-Type": undefined }
+      });
+      const parsed = res.data.data;
+      if (parsed) {
+        setSlipForm(prev => ({
+          ...prev,
+          basic_salary: parsed.basic ? String(parsed.basic) : prev.basic_salary,
+          house_rent: parsed.house_rent ? String(parsed.house_rent) : prev.house_rent,
+          medical_allowance: parsed.medical ? String(parsed.medical) : prev.medical_allowance,
+          conveyance: parsed.conveyance ? String(parsed.conveyance) : prev.conveyance,
+          festival_bonus: parsed.festival_bonus ? String(parsed.festival_bonus) : prev.festival_bonus,
+          tax_deducted: parsed.tds_deducted ? String(parsed.tds_deducted) : prev.tax_deducted
+        }));
+        alert("⚡ OCR Scanning Successful! Salary components & TDS figures auto-populated from PDF.");
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "OCR Parsing failed. Please ensure the document is a readable PDF.");
+    } finally {
+      setIsOcrLoading(false);
+      e.target.value = "";
+    }
+  };
 
   // Local state for Employee profile editing
   const [isEditingEmployee, setIsEditingEmployee] = useState(false);
@@ -822,10 +903,30 @@ export const Dashboard: React.FC = () => {
               {activeTab === "tax_calculator" && "Calculate dynamic tax projections, investment rebate optimization, and manage historical logs."}
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="p-2 text-gray-400 hover:text-white bg-gray-900/50 border border-gray-800 rounded-lg relative cursor-pointer">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-emerald-500 rounded-full"></span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsAiDrawerOpen(true)}
+              className="px-3.5 py-1.5 bg-gradient-to-r from-purple-900/40 to-emerald-900/40 hover:from-purple-800/60 hover:to-emerald-800/60 border border-purple-500/30 text-purple-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-md"
+            >
+              <Bot className="w-4 h-4 text-purple-400" />
+              <span>AI Assistant</span>
+              <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />
+            </button>
+            <button
+              onClick={handleDownloadPdfReturn}
+              className="px-3 py-1.5 bg-emerald-950/50 hover:bg-emerald-900/60 border border-emerald-800/60 text-emerald-300 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Download NBR Tax Computation PDF"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <span>PDF Return</span>
+            </button>
+            <button
+              onClick={handleDownloadSalaryExcel}
+              className="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 border border-gray-800 text-gray-300 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Export Excel Salary Log"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Excel Log</span>
             </button>
             <div className="bg-emerald-950/30 border border-emerald-900/40 text-emerald-400 text-xs px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
@@ -891,6 +992,77 @@ export const Dashboard: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-4">
                   {user.is_verified ? "Fully authorized for automated NBR submission." : "Verification required to unlock final reporting export."}
                 </p>
+              </div>
+            </div>
+
+            {/* Visual Analytics Section (Sprint 7) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+              <div className="glass-panel p-6 rounded-xl border border-emerald-500/20">
+                <h3 className="text-base font-bold text-white mb-4 flex items-center justify-between">
+                  <span>📊 Salary Components Breakdown</span>
+                  <span className="text-xs font-normal text-emerald-400">Standard Allowances</span>
+                </h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: "Basic Salary", value: 60 },
+                          { name: "House Rent", value: 30 },
+                          { name: "Medical", value: 5 },
+                          { name: "Conveyance", value: 5 }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        <Cell key="cell-0" fill="#059669" />
+                        <Cell key="cell-1" fill="#10b981" />
+                        <Cell key="cell-2" fill="#34d399" />
+                        <Cell key="cell-3" fill="#6ee7b7" />
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b", borderRadius: "8px" }}
+                        itemStyle={{ color: "#e2e8f0" }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: "12px", color: "#94a3b8" }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="glass-panel p-6 rounded-xl border border-purple-500/20">
+                <h3 className="text-base font-bold text-white mb-4 flex items-center justify-between">
+                  <span>📈 Tax Slabs Progression (NBR Act 2023)</span>
+                  <span className="text-xs font-normal text-purple-400">Rate (%)</span>
+                </h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={[
+                        { slab: "First 3.5L", rate: 0 },
+                        { slab: "Next 1L", rate: 5 },
+                        { slab: "Next 3L", rate: 10 },
+                        { slab: "Next 4L", rate: 15 },
+                        { slab: "Next 5L", rate: 20 },
+                        { slab: "Balance", rate: 25 }
+                      ]}
+                      margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <XAxis dataKey="slab" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                      <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: "#0f172a", borderColor: "#1e293b", borderRadius: "8px" }}
+                        itemStyle={{ color: "#a855f7" }}
+                      />
+                      <Bar dataKey="rate" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
 
@@ -1505,6 +1677,17 @@ export const Dashboard: React.FC = () => {
                           <p className="text-xs text-gray-500 m-0 mt-0.5">Upload monthly payslips or manually log components</p>
                         </div>
                         <div className="flex items-center gap-2">
+                          <label className="py-1.5 px-3 bg-purple-950/40 hover:bg-purple-900/60 border border-purple-800/60 text-purple-300 text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shrink-0">
+                            <Scan className="w-4 h-4 text-purple-400" />
+                            <span>{isOcrLoading ? "Scanning PDF..." : "⚡ Auto-Fill via OCR"}</span>
+                            <input
+                              type="file"
+                              accept=".pdf"
+                              className="hidden"
+                              disabled={isOcrLoading}
+                              onChange={handleOcrSalaryPdf}
+                            />
+                          </label>
                           <label className="py-1.5 px-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shrink-0">
                             <UploadCloud className="w-4 h-4 text-emerald-400" />
                             <span>{uploadSlipPdfMutation.isPending ? "Parsing PDF..." : "Upload Payslip PDF"}</span>
@@ -3017,6 +3200,11 @@ export const Dashboard: React.FC = () => {
           </div>
         )}
       </main>
+
+      <AiTaxAssistantDrawer
+        isOpen={isAiDrawerOpen}
+        onClose={() => setIsAiDrawerOpen(false)}
+      />
     </div>
   );
 };
