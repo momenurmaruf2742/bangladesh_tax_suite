@@ -62,6 +62,163 @@
 
 ---
 
+## 🔧 Environment Configuration Guide (`.env`)
+
+Configure the environment files before running the application:
+
+### 1. Backend Configuration (`backend/.env`)
+Copy `backend/.env.example` to `backend/.env`:
+```env
+PROJECT_NAME="Bangladesh Tax Suite"
+API_V1_STR="/api/v1"
+
+# Database Settings
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=tax_db
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+
+# Redis Settings
+REDIS_HOST=redis
+REDIS_PORT=6379
+
+# Security Settings (Generate secure keys for Production)
+JWT_SECRET_KEY=supersecretaccesskeyforbangladeshtaxsuite2026!!!
+JWT_REFRESH_SECRET_KEY=supersecretrefreshkeyforbangladeshtaxsuite2026!!!
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# CORS Allowed Origins
+BACKEND_CORS_ORIGINS=["http://localhost:5173", "http://127.0.0.1:5173", "*"]
+```
+
+### 2. Frontend Configuration (`frontend/.env`)
+Copy `frontend/.env.example` to `frontend/.env`:
+```env
+# Leave VITE_API_URL empty for automatic dynamic local IP / localhost detection
+VITE_API_URL=
+```
+*(For production domain deployments, set `VITE_API_URL=https://api.taxsuite.com/api/v1`)*
+
+---
+
+## ⚡ Quick Start (Docker Compose)
+
+Launch the entire stack (PostgreSQL, Redis, FastAPI Backend, React Frontend) with one command:
+
+```bash
+# 1. Build and run all docker services
+docker compose up --build
+
+# 2. Provision default Super Admin & Test User accounts inside container
+docker compose exec backend python /app/scripts/setup_accounts.py
+```
+
+### Access URLs
+- **Frontend App**: [http://localhost:5173](http://localhost:5173)
+- **FastAPI Interactive Docs (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Alternative ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+- **API Health Endpoint**: [http://localhost:8000/health](http://localhost:8000/health)
+
+### Default Test Credentials
+- 👑 **Super Admin**: `momenur.tax@taxsuite.com` | Password: `strongpassword123`
+- 👤 **Normal User**: `momenur.maruf@gmail.com` | Password: `strongpassword123`
+
+---
+
+## 💻 Local Development Setup (Without Docker)
+
+If you prefer to run services locally without Docker:
+
+### 1. Database & Cache Services
+Ensure PostgreSQL is running locally on port `5432` with a database named `tax_db` and Redis is running on port `6379`.
+
+### 2. Backend Setup
+1. Move to backend folder:
+   ```bash
+   cd backend
+   ```
+2. Create and activate virtual environment:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Copy environment configuration:
+   ```bash
+   cp .env.example .env
+   ```
+5. Provision test accounts:
+   ```bash
+   python scripts/setup_accounts.py
+   ```
+6. Run server:
+   ```bash
+   python app/main.py
+   ```
+
+### 3. Frontend Setup
+1. Move to frontend folder:
+   ```bash
+   cd ../frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start Vite dev server:
+   ```bash
+   npm run dev
+   ```
+
+---
+
+## 🌐 Production Deployment Guide
+
+To deploy **Bangladesh Tax Suite** to a Linux VPS (DigitalOcean, AWS EC2, Hetzner, etc.):
+
+### Step 1: Open Server Firewall Ports
+```bash
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw allow 22/tcp
+sudo ufw enable
+```
+
+### Step 2: Set Production Environment Variables
+Generate secure keys via `openssl rand -hex 32` and update `backend/.env`:
+- Change `POSTGRES_PASSWORD` to a strong password.
+- Update `JWT_SECRET_KEY` and `JWT_REFRESH_SECRET_KEY`.
+- Set `BACKEND_CORS_ORIGINS=["https://taxsuite.yourdomain.com"]`.
+- Set `VITE_API_URL=https://taxsuite.yourdomain.com/api/v1` in `frontend/.env`.
+
+### Step 3: Run Docker Compose in Background
+```bash
+docker compose up --build -d
+```
+
+### Step 4: Configure Nginx & SSL (Certbot)
+Install Nginx and Let's Encrypt Certbot:
+```bash
+sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
+```
+Configure Nginx reverse proxy pointing port 80/443 to `http://127.0.0.1:5173` (Frontend) and `/api/` to `http://127.0.0.1:8000` (Backend). Then obtain SSL:
+```bash
+sudo certbot --nginx -d taxsuite.yourdomain.com
+```
+
+Detailed technical specifications and architecture guidelines can be found in the [`docs/`](./docs) folder:
+- [Installation & Setup Guide](docs/installation.md)
+- [Architecture Specifications](docs/architecture.md)
+- [REST API Reference](docs/api.md)
+
+---
+
 ## 🛠️ Project Structure
 
 ```text
@@ -93,30 +250,6 @@ bangladesh-tax-suite/
 ├── docs/                     # Technical specifications (api.md, architecture.md, installation.md)
 └── docker-compose.yml        # Orchestration configuration
 ```
-
----
-
-## ⚡ Quick Start (Docker Compose)
-
-Launch the entire stack (PostgreSQL, Redis, FastAPI Backend, React Frontend) with one command:
-
-```bash
-# 1. Build and run all docker services
-docker compose up --build
-
-# 2. Provision default Super Admin & Test User accounts inside container
-docker compose exec backend python /app/scripts/setup_accounts.py
-```
-
-### Access URLs
-- **Frontend App**: [http://localhost:5173](http://localhost:5173)
-- **FastAPI Interactive Docs (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Alternative ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
-- **API Health Endpoint**: [http://localhost:8000/health](http://localhost:8000/health)
-
-### Default Test Credentials
-- 👑 **Super Admin**: `momenur.tax@taxsuite.com` | Password: `strongpassword123`
-- 👤 **Normal User**: `momenur.maruf@gmail.com` | Password: `strongpassword123`
 
 ---
 
