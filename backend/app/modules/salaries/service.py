@@ -33,6 +33,11 @@ class SalaryService:
             )
         return employee.id
 
+    async def _get_employee_id_or_none(self, user_id: uuid.UUID) -> uuid.UUID | None:
+        """Fetch employee ID for user or None if profile not setup."""
+        employee = await self.employee_repo.get_by_user_id(user_id)
+        return employee.id if employee else None
+
     async def create_or_update_slip(self, user_id: uuid.UUID, slip_create: SalarySlipCreate) -> SalarySlip:
         """Add a monthly salary slip record, or update if it exists."""
         employee_id = await self._get_employee_id(user_id)
@@ -49,12 +54,29 @@ class SalaryService:
 
     async def get_my_slips(self, user_id: uuid.UUID) -> list[SalarySlip]:
         """Fetch all slips for the logged in user's profile."""
-        employee_id = await self._get_employee_id(user_id)
+        employee_id = await self._get_employee_id_or_none(user_id)
+        if not employee_id:
+            return []
         return await self.repo.get_slips_by_employee(employee_id)
 
     async def get_summary_for_year(self, user_id: uuid.UUID, financial_year: str) -> SalarySlipSummaryResponse:
         """Calculate the sum of all salary components for the given assessment year."""
-        employee_id = await self._get_employee_id(user_id)
+        employee_id = await self._get_employee_id_or_none(user_id)
+        if not employee_id:
+            return SalarySlipSummaryResponse(
+                financial_year=financial_year,
+                months_count=0,
+                total_basic=Decimal("0.0"),
+                total_house_rent=Decimal("0.0"),
+                total_medical=Decimal("0.0"),
+                total_conveyance=Decimal("0.0"),
+                total_bonus=Decimal("0.0"),
+                total_provident_fund=Decimal("0.0"),
+                total_employer_provident_fund=Decimal("0.0"),
+                total_other_allowances=Decimal("0.0"),
+                total_tax_deducted=Decimal("0.0"),
+                gross_salary=Decimal("0.0")
+            )
         
         # Parse assessment year format YYYY-YYYY e.g., 2025-2026
         # Income year runs from July of start year to June of end year
@@ -273,84 +295,67 @@ class SalaryService:
                 text += (page.extract_text() or "") + "\n"
 
             if text.strip():
-                def find_amount(patterns: list[str], default_val: Decimal) -> Decimal:
+                def find_amount(patterns: list[str]) -> Decimal:
                     for p in patterns:
                         match = re.search(p, text, re.IGNORECASE)
                         if match:
-                            num_str = match.group(1).replace(",", "")
+                            num_str = match.group(1).replace(",", "").strip()
                             try:
                                 val = Decimal(num_str)
-                                if val > 0:
+                                if val >= 0:
                                     return val
                             except Exception:
                                 pass
-                    return default_val
+                    return Decimal("0.0")
 
                 extracted_totals["total_basic"] = find_amount([
                     r"basic\s+salary.*?\s*([0-9,]+(?:\.[0-9]+)?)",
                     r"basic.*?\s*([0-9,]+(?:\.[0-9]+)?)"
-                ], Decimal("600000.00"))
+                ])
 
                 extracted_totals["total_house_rent"] = find_amount([
                     r"house\s+rent.*?\s*([0-9,]+(?:\.[0-9]+)?)",
                     r"rent.*?\s*([0-9,]+(?:\.[0-9]+)?)"
-                ], Decimal("300000.00"))
+                ])
 
                 extracted_totals["total_medical"] = find_amount([
+                    r"medical\s+allowance.*?\s*([0-9,]+(?:\.[0-9]+)?)",
                     r"medical.*?\s*([0-9,]+(?:\.[0-9]+)?)"
-                ], Decimal("120000.00"))
+                ])
 
                 extracted_totals["total_conveyance"] = find_amount([
+                    r"conveyance\s+allowance.*?\s*([0-9,]+(?:\.[0-9]+)?)",
                     r"conveyance.*?\s*([0-9,]+(?:\.[0-9]+)?)"
-                ], Decimal("30000.00"))
+                ])
 
                 extracted_totals["total_bonus"] = find_amount([
                     r"annual\s+bonus.*?\s*([0-9,]+(?:\.[0-9]+)?)",
+                    r"festival\s+bonus.*?\s*([0-9,]+(?:\.[0-9]+)?)",
                     r"bonus.*?\s*([0-9,]+(?:\.[0-9]+)?)"
-                ], Decimal("100000.00"))
+                ])
 
                 extracted_totals["total_provident_fund"] = find_amount([
                     r"provident\s+fund.*?\s*([0-9,]+(?:\.[0-9]+)?)"
-                ], Decimal("60000.00"))
+                ])
 
-                # Total tax from certificate summary e.g. "In Word: Nine thousand ... 9,640"
-                tax_match = re.search(r"In\s+Word:.*?\s*([0-9,]{4,})\s*Thanks", text, re.DOTALL | re.IGNORECASE)
-                if tax_match:
-                    try:
-                        extracted_totals["total_tax_deducted"] = Decimal(tax_match.group(1).replace(",", ""))
-                    except Exception:
-                        pass
-                if extracted_totals["total_tax_deducted"] == Decimal("0.0"):
+                # Check if tax is explicitly Nil/Zero or 0
+                is_tax_nil = bool(re.search(r"(?:tax\s+deducted|tds|source\s+tax|income\s+tax).*?(?:nil|zero|none|n/a|\b0\b|\b0\.00\b)", text, re.IGNORECASE))
+                if is_tax_nil:
+                    extracted_totals["total_tax_deducted"] = Decimal("0.0")
+                else:
                     extracted_totals["total_tax_deducted"] = find_amount([
+                        r"tax\s+deducted\s+at\s+source.*?\s*([0-9,]+(?:\.[0-9]+)?)",
+                        r"total\s+tax\s+deducted.*?\s*([0-9,]+(?:\.[0-9]+)?)",
                         r"tax\s+deducted.*?\s*([0-9,]+(?:\.[0-9]+)?)",
+                        r"income\s+tax.*?\s*([0-9,]+(?:\.[0-9]+)?)",
                         r"tds.*?\s*([0-9,]+(?:\.[0-9]+)?)",
                         r"source\s+tax.*?\s*([0-9,]+(?:\.[0-9]+)?)"
-                    ], Decimal("25000.00"))
+                    ])
 
                 extracted_totals["total_others"] = find_amount([
                     r"other\s+allowance.*?\s*([0-9,]+(?:\.[0-9]+)?)",
                     r"other.*?\s*([0-9,]+(?:\.[0-9]+)?)"
-                ], Decimal("0.00"))
-            else:
-                extracted_totals["total_basic"] = Decimal("600000.00")
-                extracted_totals["total_house_rent"] = Decimal("300000.00")
-                extracted_totals["total_medical"] = Decimal("120000.00")
-                extracted_totals["total_conveyance"] = Decimal("30000.00")
-                extracted_totals["total_bonus"] = Decimal("100000.00")
-                extracted_totals["total_provident_fund"] = Decimal("60000.00")
-                extracted_totals["total_tax_deducted"] = Decimal("25000.00")
-                extracted_totals["total_others"] = Decimal("50000.00")
-        except Exception as e:
-            print(f"Error parsing uploaded salary certificate PDF: {e}")
-            extracted_totals["total_basic"] = Decimal("600000.00")
-            extracted_totals["total_house_rent"] = Decimal("300000.00")
-            extracted_totals["total_medical"] = Decimal("120000.00")
-            extracted_totals["total_conveyance"] = Decimal("30000.00")
-            extracted_totals["total_bonus"] = Decimal("100000.00")
-            extracted_totals["total_provident_fund"] = Decimal("60000.00")
-            extracted_totals["total_tax_deducted"] = Decimal("25000.00")
-            extracted_totals["total_others"] = Decimal("50000.00")
-
+                ])
         except Exception as e:
             print(f"Error parsing uploaded salary certificate PDF: {e}")
 
@@ -359,7 +364,9 @@ class SalaryService:
 
     async def get_my_certificates(self, user_id: uuid.UUID) -> list[SalaryCertificate]:
         """Fetch uploaded certificates list."""
-        employee_id = await self._get_employee_id(user_id)
+        employee_id = await self._get_employee_id_or_none(user_id)
+        if not employee_id:
+            return []
         return await self.repo.get_certificates_by_employee(employee_id)
 
     async def update_certificate_values(self, user_id: uuid.UUID, cert_id: uuid.UUID, updates: dict) -> SalaryCertificate:

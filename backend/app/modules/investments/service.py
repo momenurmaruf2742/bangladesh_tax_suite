@@ -28,6 +28,10 @@ class InvestmentService:
             )
         return employee.id
 
+    async def _get_employee_id_or_none(self, user_id: uuid.UUID) -> uuid.UUID | None:
+        employee = await self.employee_repo.get_by_user_id(user_id)
+        return employee.id if employee else None
+
     # Investment Actions
     async def create_investment(self, user_id: uuid.UUID, invest_in: InvestmentCreate) -> Investment:
         employee_id = await self._get_employee_id(user_id)
@@ -59,7 +63,9 @@ class InvestmentService:
         await self.repo.delete_investment(db_invest)
 
     async def get_investments(self, user_id: uuid.UUID, financial_year: str | None = None) -> list[Investment]:
-        employee_id = await self._get_employee_id(user_id)
+        employee_id = await self._get_employee_id_or_none(user_id)
+        if not employee_id:
+            return []
         if financial_year:
             return await self.repo.get_investments_by_year(employee_id, financial_year)
         return await self.repo.get_investments_by_employee(employee_id)
@@ -95,14 +101,27 @@ class InvestmentService:
         await self.repo.delete_ait(db_ait)
 
     async def get_aits(self, user_id: uuid.UUID, financial_year: str | None = None) -> list[AITRecord]:
-        employee_id = await self._get_employee_id(user_id)
+        employee_id = await self._get_employee_id_or_none(user_id)
+        if not employee_id:
+            return []
         if financial_year:
             return await self.repo.get_aits_by_year(employee_id, financial_year)
         return await self.repo.get_aits_by_employee(employee_id)
 
     # Rebate Aggregations
     async def get_rebate_summary(self, user_id: uuid.UUID, financial_year: str) -> RebateSummaryResponse:
-        employee_id = await self._get_employee_id(user_id)
+        employee_id = await self._get_employee_id_or_none(user_id)
+        if not employee_id:
+            return RebateSummaryResponse(
+                financial_year=financial_year,
+                total_invested=Decimal("0.0"),
+                total_ait=Decimal("0.0"),
+                dps_total=Decimal("0.0"),
+                life_insurance_total=Decimal("0.0"),
+                sanchayapatra_total=Decimal("0.0"),
+                stock_market_total=Decimal("0.0"),
+                other_investments_total=Decimal("0.0")
+            )
         
         investments = await self.repo.get_investments_by_year(employee_id, financial_year)
         aits = await self.repo.get_aits_by_year(employee_id, financial_year)

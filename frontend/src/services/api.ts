@@ -1,6 +1,16 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+// Dynamically determine backend URL based on current browser window location
+const getApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && envUrl.trim() !== "" && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+    return envUrl;
+  }
+  const hostname = typeof window !== "undefined" && window.location.hostname ? window.location.hostname : "localhost";
+  return `http://${hostname}:8000/api/v1`;
+};
+
+const API_URL = getApiUrl();
 
 export const api = axios.create({
   baseURL: API_URL,
