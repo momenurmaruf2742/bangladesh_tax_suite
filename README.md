@@ -2,7 +2,18 @@
 
 > Enterprise-Grade, Production-Ready Income Tax Management SaaS for Bangladesh based on Income Tax Act 2023.
 
-The **Bangladesh Tax Suite** is a modern, scalable web application designed to manage employee tax profiles, salary structures, tax-exempt allowances, eligible investments under Section 78, advance income tax (AIT), visual analytics, PDF OCR parsing, AI Tax Advisory, and official NBR Tax Return Computation Sheet generation.
+## 📌 About The Project
+
+**Bangladesh Tax Suite** is an automated, production-ready SaaS platform built to simplify individual and corporate income tax management in Bangladesh under the **National Board of Revenue (NBR) Income Tax Act 2023**.
+
+### Key Features
+- 🔐 **Multi-Role Authentication & Access Control**: Self-registration for Individual Taxpayers, Corporate Admins, and CA Firms with Super Admin approval workflow.
+- 📐 **NBR Income Tax Act 2023 Calculation Engine**: Automated progressive slab calculations (0%, 5%, 10%, 15%, 20%, 25%), 1/3rd salary exemption limits (up to ৳4.5L), and tax-free threshold rules.
+- 💎 **Section 78 Investment Rebate Engine**: Automated rebate calculations for DPS (৳1.2L cap), Sanchayapatra, Life Insurance, Stock Market, and Provident Fund (PF) contributions.
+- ⚡ **PDF OCR Salary Certificate Parser**: Automated text extraction from uploaded salary certificates and payslips with smart zero-tax (Nil) fallback detection.
+- 📥 **PDF & Excel Exporters**: One-click downloadable official NBR Form IT-1152023 Income Tax Return Computation Sheet (PDF) and multi-tab Excel Salary Statements.
+- 📊 **Visual Analytics**: Interactive Recharts Donut & Bar charts for salary component breakdowns and tax slab progressions.
+- 🤖 **AI Tax Assistant**: Embedded AI chatbot grounded in Bangladesh Income Tax Act 2023 regulations.
 
 ---
 
@@ -27,7 +38,7 @@ The **Bangladesh Tax Suite** is a modern, scalable web application designed to m
 
 ---
 
-## ✨ Features & Capabilities
+## ✨ System Capabilities & Workflows
 
 - 🔐 **Multi-Role Authentication & Access Control**:
   - Self-registration for **Individual Taxpayers** (auto-approved), **Company Admins**, and **CA Firms** (pending Super Admin approval).
