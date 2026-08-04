@@ -1,16 +1,20 @@
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
+
+from app.modules.employees.repository import EmployeeRepository
+from app.modules.investments.repository import InvestmentRepository
+from app.modules.salaries.repository import SalaryRepository
+from app.modules.taxes.model import TaxCalculation
+from app.modules.taxes.repository import TaxRepository
+from app.modules.taxes.schema import (
+    TaxCalculationResponse,
+    TaxDetailsResponse,
+    TaxSlabBreakdown,
+)
 from fastapi import HTTPException, status
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-
-from app.modules.employees.repository import EmployeeRepository
-from app.modules.salaries.repository import SalaryRepository
-from app.modules.investments.repository import InvestmentRepository
-from app.modules.taxes.model import TaxCalculation
-from app.modules.taxes.repository import TaxRepository
-from app.modules.taxes.schema import TaxSlabBreakdown, TaxDetailsResponse, TaxCalculationResponse
 
 
 class TaxService:
@@ -27,7 +31,7 @@ class TaxService:
         if not employee:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Employee profile not setup. Please configure employee details first."
+                detail="Employee profile not setup. Please configure employee details first.",
             )
         return employee
 
@@ -35,7 +39,7 @@ class TaxService:
         self,
         user_id: uuid.UUID,
         financial_year: str,
-        other_income: Decimal = Decimal("0.0")
+        other_income: Decimal = Decimal("0.0"),
     ) -> TaxDetailsResponse:
         """Calculate tax details without persisting to database."""
         employee = await self._get_employee(user_id)
@@ -77,10 +81,12 @@ class TaxService:
             except Exception:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid financial year format. Must be YYYY-YYYY (e.g. 2025-2026)"
+                    detail="Invalid financial year format. Must be YYYY-YYYY (e.g. 2025-2026)",
                 )
-            
-            slips = await self.salary_repo.get_slips_by_financial_year(employee_id, start_month, end_month)
+
+            slips = await self.salary_repo.get_slips_by_financial_year(
+                employee_id, start_month, end_month
+            )
             for s in slips:
                 # Total salary includes basic, house rent, medical, conveyance, bonus, other allowances, and employer PF match
                 total_salary += (
@@ -93,119 +99,112 @@ class TaxService:
                     + s.employer_provident_fund
                 )
                 tds_salary += s.tax_deducted
-                pf_salary += (s.provident_fund + s.employer_provident_fund)
+                pf_salary += s.provident_fund + s.employer_provident_fund
+
+        # Get tax rules dynamically
+        from app.core.tax_rules import get_tax_rules
+
+        rules = get_tax_rules(financial_year)
 
         # 2. Exemption Calculation (Salaried income: 1/3 of total salary or 4,50,000 BDT, whichever is lower)
-        exempted_salary = min(total_salary / Decimal("3.0"), Decimal("450000.00"))
+        exempted_salary = min(
+            total_salary / rules["exemption_rate"], rules["exemption_max"]
+        )
         taxable_salary = max(Decimal("0.0"), total_salary - exempted_salary)
 
         # Total taxable income
         total_taxable_income = taxable_salary + other_income
 
         # 3. Determine Tax-Free Threshold
-        # Default: 3,50,000 BDT
-        # Female / Senior: 4,00,000 BDT
-        # Disabled: 4,75,000 BDT
-        # Freedom Fighter: 5,00,000 BDT
-        threshold = Decimal("350000.00")
+        threshold = rules["thresholds"]["default"]
         if employee.is_freedom_fighter:
-            threshold = Decimal("500000.00")
+            threshold = rules["thresholds"]["is_freedom_fighter"]
         elif employee.is_disabled:
-            threshold = Decimal("475000.00")
-        elif employee.gender in ["Female", "Third Gender"]:
-            threshold = Decimal("400000.00")
+            threshold = rules["thresholds"]["is_disabled"]
+        elif employee.gender in rules["thresholds"]:
+            threshold = rules["thresholds"][employee.gender]
 
         # 4. Slab-by-slab tax calculation
-        # Slabs definitions (amounts, rates)
-        # Slabs after the initial threshold:
-        # Next 1,00,000 at 5%
-        # Next 3,00,000 at 10%
-        # Next 4,00,000 at 15%
-        # Next 5,00,000 at 20%
-        # Remaining at 25%
-        slabs_config = [
-            ("Tax-free Slab", threshold, 0.0),
-            ("Next 1,00,000 BDT", Decimal("100000.00"), 0.05),
-            ("Next 3,00,000 BDT", Decimal("300000.00"), 0.10),
-            ("Next 4,00,000 BDT", Decimal("400000.00"), 0.15),
-            ("Next 5,00,000 BDT", Decimal("500000.00"), 0.20),
-        ]
-
         remaining_income = total_taxable_income
         slabs_breakdown = []
         gross_tax = Decimal("0.0")
 
-        # First tax free slab
+        # First tax-free slab
         tax_free_allotted = min(remaining_income, threshold)
         slabs_breakdown.append(
             TaxSlabBreakdown(
                 slab_name=f"Tax-free limit ({int(threshold):,} BDT)",
                 tax_rate=0.0,
                 taxable_amount=tax_free_allotted,
-                tax_amount=Decimal("0.0")
+                tax_amount=Decimal("0.0"),
             )
         )
         remaining_income -= tax_free_allotted
 
         # Progressive slabs
-        for name, limit, rate in slabs_config[1:]:
+        for name, limit, rate in rules["slabs"][1:]:
             if remaining_income <= 0:
                 break
-            allotted = min(remaining_income, limit)
-            tax_val = allotted * Decimal(str(rate))
-            gross_tax += tax_val
-            slabs_breakdown.append(
-                TaxSlabBreakdown(
-                    slab_name=name,
-                    tax_rate=rate,
-                    taxable_amount=allotted,
-                    tax_amount=tax_val
+            if limit is None:
+                # Remaining balance
+                tax_val = remaining_income * rate
+                gross_tax += tax_val
+                slabs_breakdown.append(
+                    TaxSlabBreakdown(
+                        slab_name=name,
+                        tax_rate=float(rate),
+                        taxable_amount=remaining_income,
+                        tax_amount=tax_val,
+                    )
                 )
-            )
-            remaining_income -= allotted
-
-        # Final slab at 25%
-        if remaining_income > 0:
-            tax_val = remaining_income * Decimal("0.25")
-            gross_tax += tax_val
-            slabs_breakdown.append(
-                TaxSlabBreakdown(
-                    slab_name="Remaining taxable balance",
-                    tax_rate=0.25,
-                    taxable_amount=remaining_income,
-                    tax_amount=tax_val
+                remaining_income = Decimal("0.0")
+            else:
+                allotted = min(remaining_income, limit)
+                tax_val = allotted * rate
+                gross_tax += tax_val
+                slabs_breakdown.append(
+                    TaxSlabBreakdown(
+                        slab_name=name,
+                        tax_rate=float(rate),
+                        taxable_amount=allotted,
+                        tax_amount=tax_val,
+                    )
                 )
-            )
+                remaining_income -= allotted
 
         # 5. Investment & Rebate calculation (Income Tax Act 2023, Section 78)
         # Fetch logged investments
         invest_logs = await self.invest_repo.get_investments_by_employee(employee_id)
-        
+
         # Apply category specific limits (e.g. DPS allowable limit is 1,20,000 BDT/year under NBR rules)
         logged_investments = Decimal("0.0")
         for inv in invest_logs:
             if inv.financial_year == financial_year:
                 if inv.category == "DPS":
-                    logged_investments += min(inv.amount, Decimal("120000.00"))
+                    logged_investments += min(inv.amount, rules["dps_max"])
                 else:
                     logged_investments += inv.amount
 
         # Total invested includes actual logged investments + PF contributions from salary
         total_invested = logged_investments + pf_salary
 
-        # Max eligible investment for rebate (20% of taxable income or 66.66 Lakhs BDT)
-        max_eligible_invest = min(total_taxable_income * Decimal("0.20"), Decimal("6666666.67"))
+        # Max eligible investment for rebate
+        max_eligible_invest = min(
+            total_taxable_income * rules["max_eligible_invest_rate"],
+            rules["max_eligible_invest_cap"],
+        )
         eligible_investment = min(total_invested, max_eligible_invest)
-        
-        # Rebate is lower of:
-        # 1. 15% of eligible investment
-        # 2. 3% of total taxable income
-        # 3. 10,00,000 BDT (10 Lakhs)
-        rebate_by_invest = eligible_investment * Decimal("0.15")
-        rebate_by_income = total_taxable_income * Decimal("0.03")
-        
-        investment_rebate = min(rebate_by_invest, rebate_by_income, Decimal("1000000.00"))
 
+        # Rebate is lower of:
+        # 1. rebate_rate of eligible investment
+        # 2. income_rebate_limit_rate of total taxable income
+        # 3. max_rebate_cap
+        rebate_by_invest = eligible_investment * rules["rebate_rate"]
+        rebate_by_income = total_taxable_income * rules["income_rebate_limit_rate"]
+
+        investment_rebate = min(
+            rebate_by_invest, rebate_by_income, rules["max_rebate_cap"]
+        )
 
         # 6. Minimum Tax rule
         minimum_tax = Decimal("0.0")
@@ -213,13 +212,14 @@ class TaxService:
 
         if gross_tax > 0:
             # Determine minimum tax by location
-            loc = employee.location
-            if loc == "Dhaka/Chittagong City Corporation":
-                minimum_tax = Decimal("5000.00")
-            elif loc == "Other City Corporation":
-                minimum_tax = Decimal("4000.00")
+            if rules["minimum_tax_location_based"]:
+                loc = employee.location
+                if loc in rules["minimum_tax"]:
+                    minimum_tax = rules["minimum_tax"][loc]
+                else:
+                    minimum_tax = rules["minimum_tax"]["default"]
             else:
-                minimum_tax = Decimal("3000.00")
+                minimum_tax = rules["minimum_tax"]["default"]
 
             tax_after_rebate = max(Decimal("0.0"), gross_tax - investment_rebate)
             net_tax = max(tax_after_rebate, minimum_tax)
@@ -227,7 +227,9 @@ class TaxService:
         # 7. Adjust with AIT and TDS
         # Fetch logged AIT records
         ait_logs = await self.invest_repo.get_aits_by_employee(employee_id)
-        ait_paid = sum(ait.amount for ait in ait_logs if ait.financial_year == financial_year)
+        ait_paid = sum(
+            ait.amount for ait in ait_logs if ait.financial_year == financial_year
+        )
 
         # Final payable = Net Tax - AIT - TDS
         final_payable = net_tax - ait_paid - tds_salary
@@ -250,7 +252,7 @@ class TaxService:
             ait_paid=ait_paid,
             tds_salary=tds_salary,
             final_payable=final_payable,
-            created_at=datetime.now(timezone.utc).replace(tzinfo=None)
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
         )
 
         return TaxDetailsResponse(
@@ -259,19 +261,19 @@ class TaxService:
             employee_gender=employee.gender,
             employee_location=employee.location,
             is_disabled=employee.is_disabled,
-            is_freedom_fighter=employee.is_freedom_fighter
+            is_freedom_fighter=employee.is_freedom_fighter,
         )
 
     async def calculate_and_save_tax(
         self,
         user_id: uuid.UUID,
         financial_year: str,
-        other_income: Decimal = Decimal("0.0")
+        other_income: Decimal = Decimal("0.0"),
     ) -> TaxDetailsResponse:
         """Calculate and persist the tax calculation in the database."""
         details = await self.calculate_tax(user_id, financial_year, other_income)
         employee = await self._get_employee(user_id)
-        
+
         # Check if a calculation already exists for this employee and year
         existing = await self.repo.get_by_employee_and_year(employee.id, financial_year)
         if existing:
@@ -296,45 +298,53 @@ class TaxService:
             net_tax=s.net_tax,
             ait_paid=s.ait_paid,
             tds_salary=s.tds_salary,
-            final_payable=s.final_payable
+            final_payable=s.final_payable,
         )
 
         saved = await self.repo.create(employee.id, db_calc)
-        
+
         # Map generated ID and attributes to response
         s.id = saved.id
         s.created_at = saved.created_at
         details.summary = s
         return details
 
-    async def get_calculation_history(self, user_id: uuid.UUID) -> list[TaxCalculationResponse]:
+    async def get_calculation_history(
+        self, user_id: uuid.UUID
+    ) -> list[TaxCalculationResponse]:
         """Retrieve calculation runs history."""
         employee = await self._get_employee(user_id)
         calcs = await self.repo.get_history_by_employee(employee.id)
         return [TaxCalculationResponse.model_validate(c) for c in calcs]
 
-    async def delete_calculation_run(self, user_id: uuid.UUID, calc_id: uuid.UUID) -> None:
+    async def delete_calculation_run(
+        self, user_id: uuid.UUID, calc_id: uuid.UUID
+    ) -> None:
         """Delete a saved tax calculation run."""
         employee = await self._get_employee(user_id)
         calc = await self.repo.get_by_id(calc_id)
         if not calc or calc.employee_id != employee.id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Tax calculation history record not found"
+                detail="Tax calculation history record not found",
             )
         await self.repo.delete(calc)
 
-    async def get_calculation_details(self, user_id: uuid.UUID, calc_id: uuid.UUID) -> TaxDetailsResponse:
+    async def get_calculation_details(
+        self, user_id: uuid.UUID, calc_id: uuid.UUID
+    ) -> TaxDetailsResponse:
         """Fetch calculation details by ID, verifying ownership."""
         employee = await self._get_employee(user_id)
         calc = await self.repo.get_by_id(calc_id)
         if not calc or calc.employee_id != employee.id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Tax calculation record not found"
+                detail="Tax calculation record not found",
             )
-        
-        details = await self.calculate_tax(user_id, calc.financial_year, calc.other_income)
+
+        details = await self.calculate_tax(
+            user_id, calc.financial_year, calc.other_income
+        )
         details.summary.id = calc.id
         details.summary.created_at = calc.created_at
         return details

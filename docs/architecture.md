@@ -8,7 +8,7 @@ The Bangladesh Tax Suite follows a **Clean Architecture + Modular Monolith** str
 graph TD
     Client[React Frontend - Vite/Tailwind/Recharts] -->|HTTP/REST| API[FastAPI Routing Layer]
     API -->|Schema Validation| Service[Service Layer - Business Logic]
-    Service -->|NBR Act 2023 Rules| TaxEngine[Tax & Rebate Calculation Engine]
+    Service -->|Dynamic Rules Config| TaxEngine[Tax & Rebate Calculation Engine - app/core/tax_rules.py]
     Service -->|PDF & Excel Build| Reports[Report & OCR Engine - ReportLab/OpenPyXL/PyPDF]
     Service -->|AI Advisory| AiAssistant[AI Assistant Engine]
     Service -->|Queries| Repo[Repository Layer - SQLModel ORM]

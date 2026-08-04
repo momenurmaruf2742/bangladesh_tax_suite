@@ -282,7 +282,7 @@ export const TaxCalculatorPanel: React.FC<TaxCalculatorPanelProps> = ({
                     ৳ {formatCurrency(calcResult.summary.investment_rebate)}
                   </span>
                   <span className="text-[10px] text-gray-400 mt-1 block">
-                    15% of ৳{formatCurrency(calcResult.summary.eligible_investment)} eligible (Total: ৳{formatCurrency(calcResult.summary.total_invested)})
+                    {financialYear === "2024-2025" ? 15 : 10}% of ৳{formatCurrency(calcResult.summary.eligible_investment)} eligible (Total: ৳{formatCurrency(calcResult.summary.total_invested)})
                   </span>
                 </div>
                 <div className="glass-panel p-4 rounded-xl">
@@ -298,21 +298,20 @@ export const TaxCalculatorPanel: React.FC<TaxCalculatorPanelProps> = ({
 
               {/* Refund / Payable banner */}
               <div
-                className={`p-5 rounded-xl border flex items-center justify-between gap-4 ${
-                  calcResult.summary.final_payable < 0
+                className={`p-5 rounded-xl border flex items-center justify-between gap-4 ${calcResult.summary.final_payable < 0
                     ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                     : calcResult.summary.final_payable > 0
-                    ? "bg-rose-500/10 border-rose-500/20 text-rose-400"
-                    : "bg-gray-800/40 border-gray-800/60 text-gray-300"
-                }`}
+                      ? "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                      : "bg-gray-800/40 border-gray-800/60 text-gray-300"
+                  }`}
               >
                 <div>
                   <h4 className="font-bold text-base m-0 text-white">
                     {calcResult.summary.final_payable < 0
                       ? "Tax Refund Expected"
                       : calcResult.summary.final_payable > 0
-                      ? "Tax Payable Outstanding"
-                      : "Balanced Tax Status"}
+                        ? "Tax Payable Outstanding"
+                        : "Balanced Tax Status"}
                   </h4>
                   <p className="text-xs text-gray-400 m-0 mt-0.5">
                     Adjusted with Monthly TDS (৳{formatCurrency(calcResult.summary.tds_salary)}) & Advance Tax paid (৳{formatCurrency(calcResult.summary.ait_paid)})
@@ -330,14 +329,19 @@ export const TaxCalculatorPanel: React.FC<TaxCalculatorPanelProps> = ({
               {(() => {
                 const totalTaxable = Number(calcResult.summary.total_taxable_income) || 0;
                 const currentInvested = Number(calcResult.summary.total_invested) || 0;
-                const maxInvestLimit = Math.min(totalTaxable * 0.20, 6666666.67);
+                const isOldYear = financialYear === "2024-2025";
+                const rebateRate = isOldYear ? 0.15 : 0.10;
+                const investCap = isOldYear ? 6666666.67 : 7500000.00;
+                const rebateCap = isOldYear ? 1000000 : 750000;
+
+                const maxInvestLimit = Math.min(totalTaxable * 0.20, investCap);
                 const currentRebate = Number(calcResult.summary.investment_rebate) || 0;
-                const maxRebateCap = Math.min(totalTaxable * 0.03, 1000000);
+                const maxRebateCap = Math.min(totalTaxable * 0.03, rebateCap);
                 const remainingRebateCap = Math.max(0, maxRebateCap - currentRebate);
                 const remainingToInvest = Math.max(0, maxInvestLimit - currentInvested);
-                
+
                 if (remainingToInvest > 100 && remainingRebateCap > 1 && totalTaxable > 0) {
-                  const possibleExtraRebate = Math.min(remainingToInvest * 0.15, remainingRebateCap);
+                  const possibleExtraRebate = Math.min(remainingToInvest * rebateRate, remainingRebateCap);
                   return (
                     <div className="glass-panel p-5 rounded-xl border border-emerald-500/20 bg-gradient-to-r from-emerald-950/10 to-gray-950 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                       <div className="space-y-1">
@@ -446,8 +450,8 @@ export const TaxCalculatorPanel: React.FC<TaxCalculatorPanelProps> = ({
                             h.final_payable < 0
                               ? "text-emerald-400"
                               : h.final_payable > 0
-                              ? "text-rose-400"
-                              : "text-gray-300"
+                                ? "text-rose-400"
+                                : "text-gray-300"
                           }
                         >
                           ৳{formatCurrency(h.final_payable)}

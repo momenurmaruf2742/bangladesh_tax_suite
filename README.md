@@ -8,8 +8,8 @@
 
 ### Key Features
 - 🔐 **Multi-Role Authentication & Access Control**: Self-registration for Individual Taxpayers, Corporate Admins, and CA Firms with Super Admin approval workflow.
-- 📐 **NBR Income Tax Act 2023 Calculation Engine**: Automated progressive slab calculations (0%, 5%, 10%, 15%, 20%, 25%), 1/3rd salary exemption limits (up to ৳4.5L), and tax-free threshold rules.
-- 💎 **Section 78 Investment Rebate Engine**: Automated rebate calculations for DPS (৳1.2L cap), Sanchayapatra, Life Insurance, Stock Market, and Provident Fund (PF) contributions.
+- 📐 **NBR Income Tax Act 2023 Calculation Engine**: Dynamic, multi-year support via a central rules registry config. Performs automated progressive slab calculations, 1/3rd salary exemptions, and tax-free threshold rule application for FY 2024-2025 and 2025-2026.
+- 💎 **Section 78 Investment Rebate Engine**: Automated, assessment-year-aware rebate calculations. It dynamically adjusts investment tax rebate rates (15% for FY 24-25, 10% for FY 25-26), investment ceilings (৳1 Crore down to ৳75 Lakh), and DPS limits (৳1.2L cap).
 - ⚡ **PDF OCR Salary Certificate Parser**: Automated text extraction from uploaded salary certificates and payslips with smart zero-tax (Nil) fallback detection.
 - 📥 **PDF & Excel Exporters**: One-click downloadable official NBR Form IT-1152023 Income Tax Return Computation Sheet (PDF) and multi-tab Excel Salary Statements.
 - 📊 **Visual Analytics**: Interactive Recharts Donut & Bar charts for salary component breakdowns and tax slab progressions.
@@ -23,16 +23,15 @@
 - **Core Framework**: Python 3.12+ (FastAPI)
 - **Database & ORM**: PostgreSQL & SQLModel (SQLAlchemy AsyncSession + Pydantic v2)
 - **Caching & Sessions**: Redis
-- **PDF & Excel Engine**: ReportLab & OpenPyXL
-- **PDF OCR Parser**: PyPDF with Regex Pattern Recognition
-- **Testing & Quality**: Pytest (13 Unit & Integration Tests)
+- **Rules Registry**: Dynamic, configuration-driven tax rules system (`app/core/tax_rules.py`) supporting Finance Act 2024 and 2026.
+- **Testing & Quality**: Pytest (14 Unit & Integration Tests covering multi-year calculations)
 - **Deployment**: Docker & Docker Compose
 
 ### Frontend
 - **Core Framework**: React 19 (TypeScript, Vite)
 - **Styling**: Tailwind CSS (Dark Mode Glassmorphic UI)
 - **Visual Analytics**: Recharts (Donut & Bar Charts)
-- **State & Data Fetching**: TanStack Query (React Query v5) & Axios
+- **State & Data Fetching**: TanStack Query (React Query v5) & Axios (reactive to active financial year)
 - **Form Management**: React Hook Form & Zod
 - **Icons**: Lucide React
 
@@ -50,7 +49,7 @@
 - 💵 **Salary Components & Payslips**:
   - Monthly salary logs, quick gross auto-split helper (60% basic, 30% house rent, 5% medical, 5% conveyance), and annual salary summary aggregator.
 - 📈 **Investments & AIT Tracker**:
-  - DPS (max ৳1.2L cap), Sanchayapatra, Life Insurance, Stock Market, and AIT Challans with Section 78 15% investment tax rebate engine.
+  - DPS (max ৳1.2L cap), Sanchayapatra, Life Insurance, Stock Market, and AIT Challans with year-aware Section 78 investment tax rebate engine (15% or 10% rebate rate).
 - 📊 **Visual Analytics (Sprint 7)**:
   - Interactive Recharts Donut Chart for salary allowances and Bar Chart for progressive NBR tax slabs (0%, 5%, 10%, 15%, 20%, 25%).
 - 📥 **PDF Return & Excel Export (Sprint 6)**:

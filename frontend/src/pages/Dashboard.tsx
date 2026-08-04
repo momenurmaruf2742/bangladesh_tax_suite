@@ -408,6 +408,12 @@ export const Dashboard: React.FC = () => {
     enabled: !!employee
   });
 
+  const getRebateRate = (year: string) => {
+    return year === "2024-2025" ? 0.15 : 0.10;
+  };
+  const activeYear = rebateSummary?.financial_year || "2025-2026";
+  const rebateRate = getRebateRate(activeYear);
+
   // 7. Mutations
   const saveEmployeeMutation = useMutation({
     mutationFn: async (data: typeof employeeForm) => {
@@ -775,66 +781,60 @@ export const Dashboard: React.FC = () => {
           <nav className="p-4 space-y-1">
             <button
               onClick={() => setActiveTab("overview")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
-                activeTab === "overview"
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "overview"
                   ? "bg-emerald-500/10 text-emerald-400"
                   : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
-              }`}
+                }`}
             >
               <LayoutDashboard className="w-4 h-4" />
               Dashboard Overview
             </button>
             <button
               onClick={() => setActiveTab("employee")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
-                activeTab === "employee"
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "employee"
                   ? "bg-emerald-500/10 text-emerald-400"
                   : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
-              }`}
+                }`}
             >
               <Users className="w-4 h-4" />
               Employee Info
             </button>
             <button
               onClick={() => setActiveTab("employers")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
-                activeTab === "employers"
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "employers"
                   ? "bg-emerald-500/10 text-emerald-400"
                   : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
-              }`}
+                }`}
             >
               <Building className="w-4 h-4" />
               Employer Register
             </button>
             <button
               onClick={() => setActiveTab("salary")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
-                activeTab === "salary"
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "salary"
                   ? "bg-emerald-500/10 text-emerald-400"
                   : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
-              }`}
+                }`}
             >
               <Briefcase className="w-4 h-4" />
               Salary & Allowances
             </button>
             <button
               onClick={() => setActiveTab("investments")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
-                activeTab === "investments"
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "investments"
                   ? "bg-emerald-500/10 text-emerald-400"
                   : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
-              }`}
+                }`}
             >
               <TrendingUp className="w-4 h-4" />
               Investments & AIT
             </button>
             <button
               onClick={() => setActiveTab("tax_calculator")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
-                activeTab === "tax_calculator"
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "tax_calculator"
                   ? "bg-emerald-500/10 text-emerald-400"
                   : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
-              }`}
+                }`}
             >
               <Calculator className="w-4 h-4" />
               Tax Calculator
@@ -843,11 +843,10 @@ export const Dashboard: React.FC = () => {
             {user.role === "SuperAdmin" && (
               <button
                 onClick={() => setActiveTab("admin_center")}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${
-                  activeTab === "admin_center"
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "admin_center"
                     ? "bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold"
                     : "text-purple-400/80 hover:bg-purple-950/30 hover:text-purple-300"
-                }`}
+                  }`}
               >
                 <Crown className="w-4 h-4 text-purple-400" />
                 Super Admin Center
@@ -1637,31 +1636,28 @@ export const Dashboard: React.FC = () => {
                 <div className="flex gap-2 border-b border-gray-800 pb-px">
                   <button
                     onClick={() => setSalarySubTab("slips")}
-                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${
-                      salarySubTab === "slips"
+                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${salarySubTab === "slips"
                         ? "border-emerald-500 text-emerald-400"
                         : "border-transparent text-gray-500 hover:text-gray-300"
-                    }`}
+                      }`}
                   >
                     Monthly Salary Slips
                   </button>
                   <button
                     onClick={() => setSalarySubTab("summary")}
-                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${
-                      salarySubTab === "summary"
+                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${salarySubTab === "summary"
                         ? "border-emerald-500 text-emerald-400"
                         : "border-transparent text-gray-500 hover:text-gray-300"
-                    }`}
+                      }`}
                   >
                     Annual Salary Summary
                   </button>
                   <button
                     onClick={() => setSalarySubTab("certificate")}
-                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${
-                      salarySubTab === "certificate"
+                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${salarySubTab === "certificate"
                         ? "border-emerald-500 text-emerald-400"
                         : "border-transparent text-gray-500 hover:text-gray-300"
-                    }`}
+                      }`}
                   >
                     Salary Certificate PDF
                   </button>
@@ -2328,31 +2324,28 @@ export const Dashboard: React.FC = () => {
                 <div className="flex gap-2 border-b border-gray-800 pb-px">
                   <button
                     onClick={() => setInvestSubTab("eligible")}
-                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${
-                      investSubTab === "eligible"
+                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${investSubTab === "eligible"
                         ? "border-emerald-500 text-emerald-400"
                         : "border-transparent text-gray-500 hover:text-gray-300"
-                    }`}
+                      }`}
                   >
                     Eligible Investments
                   </button>
                   <button
                     onClick={() => setInvestSubTab("ait")}
-                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${
-                      investSubTab === "ait"
+                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${investSubTab === "ait"
                         ? "border-emerald-500 text-emerald-400"
                         : "border-transparent text-gray-500 hover:text-gray-300"
-                    }`}
+                      }`}
                   >
                     Advance Tax Paid (AIT)
                   </button>
                   <button
                     onClick={() => setInvestSubTab("summary")}
-                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${
-                      investSubTab === "summary"
+                    className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${investSubTab === "summary"
                         ? "border-emerald-500 text-emerald-400"
                         : "border-transparent text-gray-500 hover:text-gray-300"
-                    }`}
+                      }`}
                   >
                     Tax Rebate Analytics
                   </button>
@@ -2497,7 +2490,7 @@ export const Dashboard: React.FC = () => {
                     {/* Right Create Column */}
                     <div className="glass-panel p-6 rounded-xl flex flex-col gap-4 h-fit">
                       <h3 className="text-base font-bold text-white pb-3 border-b border-gray-800/50 m-0">Log Investment Asset</h3>
-                      
+
                       {investError && (
                         <div className="bg-red-950/20 border border-red-900/40 text-red-400 p-2.5 rounded-lg text-xs flex items-center gap-1.5">
                           <AlertCircle className="w-4 h-4 shrink-0" />
@@ -2743,7 +2736,7 @@ export const Dashboard: React.FC = () => {
                     {/* Right Create Column */}
                     <div className="glass-panel p-6 rounded-xl flex flex-col gap-4 h-fit">
                       <h3 className="text-base font-bold text-white pb-3 border-b border-gray-800/50 m-0">Log Advance Tax (AIT)</h3>
-                      
+
                       {aitError && (
                         <div className="bg-red-950/20 border border-red-900/40 text-red-400 p-2.5 rounded-lg text-xs flex items-center gap-1.5">
                           <AlertCircle className="w-4 h-4 shrink-0" />
@@ -2864,14 +2857,16 @@ export const Dashboard: React.FC = () => {
 
                       <div className="glass-panel p-5 rounded-xl bg-gradient-to-br from-purple-950/20 to-gray-900 border-l-4 border-purple-500">
                         <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Est. Rebate Percentage</span>
-                        <h2 className="text-2xl font-bold text-white mt-1.5 mb-0.5">15%</h2>
+                        <h2 className="text-2xl font-bold text-white mt-1.5 mb-0.5">
+                          {Math.round(rebateRate * 100)}%
+                        </h2>
                         <span className="text-xs text-emerald-500 font-semibold">Of eligible investments limit</span>
                       </div>
 
                       <div className="glass-panel p-5 rounded-xl bg-gradient-to-br from-amber-950/20 to-gray-900 border-l-4 border-amber-500">
                         <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Est. Rebate Amount</span>
                         <h2 className="text-2xl font-bold text-emerald-400 mt-1.5 mb-0.5">
-                          {Number((rebateSummary?.total_invested || 0) * 0.15).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {Number((rebateSummary?.total_invested || 0) * rebateRate).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </h2>
                         <span className="text-xs text-gray-500">Estimated rebate reduction</span>
                       </div>
@@ -2881,7 +2876,7 @@ export const Dashboard: React.FC = () => {
                       {/* Breakdown panel */}
                       <div className="lg:col-span-2 glass-panel p-6 rounded-xl flex flex-col gap-4">
                         <h3 className="text-sm font-bold text-white pb-2 border-b border-gray-800 m-0">Investment Categories Breakdown</h3>
-                        
+
                         <div className="space-y-4">
                           {/* DPS bar */}
                           <div>
@@ -2967,14 +2962,14 @@ export const Dashboard: React.FC = () => {
 
                       {/* Educational Rule Box */}
                       <div className="glass-panel p-6 rounded-xl bg-gradient-to-br from-emerald-950/10 to-gray-900 border border-emerald-900/30 flex flex-col gap-3">
-                        <h3 className="text-sm font-bold text-emerald-400 m-0">NBR Tax Rebate Rules (FY 2025-26)</h3>
+                        <h3 className="text-sm font-bold text-emerald-400 m-0">NBR Tax Rebate Rules (FY {activeYear})</h3>
                         <p className="text-xs text-gray-400 leading-relaxed m-0">
-                          Under the **Bangladesh Income Tax Act 2023**, a taxpayer is entitled to get a tax rebate equal to **15%** of the lower of the following:
+                          Under the **Bangladesh Income Tax Act 2023**, a taxpayer is entitled to get a tax rebate equal to **{Math.round(rebateRate * 100)}%** of the lower of the following:
                         </p>
                         <ol className="text-xs text-gray-400 space-y-1.5 pl-4 m-0 list-decimal">
                           <li>Actual total eligible investments.</li>
                           <li>**3% of Total Taxable Income** (without rebate).</li>
-                          <li>**BDT 10,00,000 (10 Lakh)**.</li>
+                          <li>**BDT {rebateRate === 0.15 ? "10,00,000 (10 Lakh)" : "7,50,000 (7.5 Lakh)"}**.</li>
                         </ol>
                         <div className="text-[10px] text-gray-500 border-t border-gray-800/80 pt-2.5 mt-1 leading-snug">
                           * Note: DPS eligible amount is capped at a maximum of BDT 1,20,000 per financial year.
@@ -3104,15 +3099,14 @@ export const Dashboard: React.FC = () => {
                             <td className="py-3 px-2 text-gray-300 font-mono text-[11px]">{u.email}</td>
                             <td className="py-3 px-2 text-gray-400">{u.phone}</td>
                             <td className="py-3 px-2">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                u.role === "Admin"
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${u.role === "Admin"
                                   ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
                                   : u.role === "CA"
-                                  ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                                  : u.role === "SuperAdmin"
-                                  ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                                  : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                              }`}>
+                                    ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                                    : u.role === "SuperAdmin"
+                                      ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                                      : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                }`}>
                                 {u.role === "Admin" ? "Company Admin" : u.role === "CA" ? "CA Firm" : u.role === "SuperAdmin" ? "Super Admin" : "Taxpayer"}
                               </span>
                             </td>
@@ -3154,23 +3148,23 @@ export const Dashboard: React.FC = () => {
               {/* NBR Rules Engine Configurator Preview */}
               <div className="glass-panel p-6 rounded-xl flex flex-col gap-4">
                 <h3 className="text-lg font-bold text-white pb-3 border-b border-gray-800/50 m-0">
-                  NBR Act 2023 Rules Engine
+                  NBR Act 2023 Rules Engine Preview ({activeYear})
                 </h3>
 
                 <div className="space-y-3 text-xs">
                   <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
                     <span className="text-gray-400">General Tax Free Threshold:</span>
-                    <span className="text-white font-bold">৳ 3,50,000</span>
+                    <span className="text-white font-bold">৳ {rebateRate === 0.15 ? "3,50,000" : "4,00,000"}</span>
                   </div>
 
                   <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
                     <span className="text-gray-400">Female / Senior (65+) Threshold:</span>
-                    <span className="text-white font-bold">৳ 4,00,000</span>
+                    <span className="text-white font-bold">৳ {rebateRate === 0.15 ? "4,00,000" : "4,25,000"}</span>
                   </div>
 
                   <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
                     <span className="text-gray-400">Max Investment Rebate Cap:</span>
-                    <span className="text-emerald-400 font-bold">৳ 10,00,000</span>
+                    <span className="text-emerald-400 font-bold">৳ {rebateRate === 0.15 ? "10,00,000" : "7,50,000"}</span>
                   </div>
 
                   <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
@@ -3180,19 +3174,30 @@ export const Dashboard: React.FC = () => {
 
                   <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
                     <span className="text-gray-400">Rebate Percentage (Sec 78):</span>
-                    <span className="text-emerald-400 font-bold">15%</span>
+                    <span className="text-emerald-400 font-bold">{Math.round(rebateRate * 100)}%</span>
                   </div>
 
                   <div className="p-3 bg-purple-950/20 border border-purple-500/20 rounded-lg space-y-1.5">
                     <span className="text-[11px] font-bold text-purple-400 block">Slab Rates Breakdown:</span>
-                    <div className="text-[11px] text-gray-300 space-y-1 font-mono">
-                      <div className="flex justify-between"><span>First ৳3.5L:</span><span className="text-emerald-400">0%</span></div>
-                      <div className="flex justify-between"><span>Next ৳1.0L:</span><span>5%</span></div>
-                      <div className="flex justify-between"><span>Next ৳3.0L:</span><span>10%</span></div>
-                      <div className="flex justify-between"><span>Next ৳4.0L:</span><span>15%</span></div>
-                      <div className="flex justify-between"><span>Next ৳5.0L:</span><span>20%</span></div>
-                      <div className="flex justify-between"><span>Balance:</span><span className="text-rose-400">25%</span></div>
-                    </div>
+                    {rebateRate === 0.15 ? (
+                      <div className="text-[11px] text-gray-300 space-y-1 font-mono">
+                        <div className="flex justify-between"><span>First ৳3.5L:</span><span className="text-emerald-400">0%</span></div>
+                        <div className="flex justify-between"><span>Next ৳1.0L:</span><span>5%</span></div>
+                        <div className="flex justify-between"><span>Next ৳3.0L:</span><span>10%</span></div>
+                        <div className="flex justify-between"><span>Next ৳4.0L:</span><span>15%</span></div>
+                        <div className="flex justify-between"><span>Next ৳5.0L:</span><span>20%</span></div>
+                        <div className="flex justify-between"><span>Balance:</span><span className="text-rose-400">25%</span></div>
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-gray-300 space-y-1 font-mono">
+                        <div className="flex justify-between"><span>First ৳4.0L:</span><span className="text-emerald-400">0%</span></div>
+                        <div className="flex justify-between"><span>Next ৳3.0L:</span><span>10%</span></div>
+                        <div className="flex justify-between"><span>Next ৳4.0L:</span><span>15%</span></div>
+                        <div className="flex justify-between"><span>Next ৳5.0L:</span><span>20%</span></div>
+                        <div className="flex justify-between"><span>Next ৳20.0L:</span><span>25%</span></div>
+                        <div className="flex justify-between"><span>Balance:</span><span className="text-rose-400">30%</span></div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
