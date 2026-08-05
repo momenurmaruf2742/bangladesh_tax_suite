@@ -6,13 +6,15 @@ The Bangladesh Tax Suite follows a **Clean Architecture + Modular Monolith** str
 
 ```mermaid
 graph TD
-    Client[React Frontend - Vite/Tailwind/Recharts] -->|HTTP/REST| API[FastAPI Routing Layer]
+    Client[React Frontend - Vite/Tailwind/RulesManager] -->|HTTP/REST| API[FastAPI Routing Layer]
     API -->|Schema Validation| Service[Service Layer - Business Logic]
-    Service -->|Dynamic Rules Config| TaxEngine[Tax & Rebate Calculation Engine - app/core/tax_rules.py]
+    Service -->|Dynamic Rules Resolver| TaxEngine[Tax Rules Service - app/modules/taxes/service.py]
+    TaxEngine -->|Database Configuration| DB[(PostgreSQL/SQLite Database)]
+    TaxEngine -.->|Local Registry Fallback| LocalRules[Local Tax Rules configs - app/core/tax_rules.py]
     Service -->|PDF & Excel Build| Reports[Report & OCR Engine - ReportLab/OpenPyXL/PyPDF]
     Service -->|AI Advisory| AiAssistant[AI Assistant Engine]
     Service -->|Queries| Repo[Repository Layer - SQLModel ORM]
-    Repo -->|Async Driver| DB[(PostgreSQL Database)]
+    Repo -->|Async Driver| DB
     Service -->|Token Blacklist| Cache[(Redis Cache)]
 ```
 

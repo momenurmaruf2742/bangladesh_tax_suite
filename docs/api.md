@@ -144,7 +144,41 @@ The Bangladesh Tax Suite exposes a RESTful API under the `/api/v1` namespace.
 
 ---
 
-## 7. Utility & Health (`/health`)
+---
+
+## 7. Dynamic Rules Engine Endpoints (`/api/v1/taxes/rules`)
+
+### Retrieve All Tax Rules
+- **URL**: `/taxes/rules`
+- **Method**: `GET`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response (`200 OK`)**: List of cached/auto-seeded `TaxRule` rulesets.
+
+### Retrieve Tax Rules by Year
+- **URL**: `/taxes/rules/{financial_year}`
+- **Method**: `GET`
+- **Headers**: `Authorization: Bearer <token>`
+
+### Create Dynamic Tax Rules (Super Admin Only)
+- **URL**: `/taxes/rules`
+- **Method**: `POST`
+- **Headers**: `Authorization: Bearer <super_admin_token>`
+- **Payload**: Full `TaxRuleCreate` JSON definition.
+
+### Update Dynamic Tax Rules (Super Admin Only)
+- **URL**: `/taxes/rules/{financial_year}`
+- **Method**: `PUT`
+- **Headers**: `Authorization: Bearer <super_admin_token>`
+- **Payload**: Fields to modify in `TaxRuleUpdate` JSON.
+
+### Delete Dynamic Tax Rules (Super Admin Only)
+- **URL**: `/taxes/rules/{financial_year}`
+- **Method**: `DELETE`
+- **Headers**: `Authorization: Bearer <super_admin_token>`
+
+---
+
+## 8. Utility & Health (`/health`)
 
 ### System Readiness Health Check
 - **URL**: `/health`
