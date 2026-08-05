@@ -18,6 +18,7 @@ import {
   CartesianGrid
 } from "recharts";
 import { AiTaxAssistantDrawer } from "../components/AiTaxAssistantDrawer";
+import { RulesManagerPanel } from "../components/RulesManagerPanel";
 import {
   LayoutDashboard,
   Users,
@@ -782,8 +783,8 @@ export const Dashboard: React.FC = () => {
             <button
               onClick={() => setActiveTab("overview")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "overview"
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
                 }`}
             >
               <LayoutDashboard className="w-4 h-4" />
@@ -792,8 +793,8 @@ export const Dashboard: React.FC = () => {
             <button
               onClick={() => setActiveTab("employee")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "employee"
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
                 }`}
             >
               <Users className="w-4 h-4" />
@@ -802,8 +803,8 @@ export const Dashboard: React.FC = () => {
             <button
               onClick={() => setActiveTab("employers")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "employers"
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
                 }`}
             >
               <Building className="w-4 h-4" />
@@ -812,8 +813,8 @@ export const Dashboard: React.FC = () => {
             <button
               onClick={() => setActiveTab("salary")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "salary"
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
                 }`}
             >
               <Briefcase className="w-4 h-4" />
@@ -822,8 +823,8 @@ export const Dashboard: React.FC = () => {
             <button
               onClick={() => setActiveTab("investments")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "investments"
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
                 }`}
             >
               <TrendingUp className="w-4 h-4" />
@@ -832,8 +833,8 @@ export const Dashboard: React.FC = () => {
             <button
               onClick={() => setActiveTab("tax_calculator")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "tax_calculator"
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
                 }`}
             >
               <Calculator className="w-4 h-4" />
@@ -844,8 +845,8 @@ export const Dashboard: React.FC = () => {
               <button
                 onClick={() => setActiveTab("admin_center")}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "admin_center"
-                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold"
-                    : "text-purple-400/80 hover:bg-purple-950/30 hover:text-purple-300"
+                  ? "bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold"
+                  : "text-purple-400/80 hover:bg-purple-950/30 hover:text-purple-300"
                   }`}
               >
                 <Crown className="w-4 h-4 text-purple-400" />
@@ -1637,8 +1638,8 @@ export const Dashboard: React.FC = () => {
                   <button
                     onClick={() => setSalarySubTab("slips")}
                     className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${salarySubTab === "slips"
-                        ? "border-emerald-500 text-emerald-400"
-                        : "border-transparent text-gray-500 hover:text-gray-300"
+                      ? "border-emerald-500 text-emerald-400"
+                      : "border-transparent text-gray-500 hover:text-gray-300"
                       }`}
                   >
                     Monthly Salary Slips
@@ -1646,8 +1647,8 @@ export const Dashboard: React.FC = () => {
                   <button
                     onClick={() => setSalarySubTab("summary")}
                     className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${salarySubTab === "summary"
-                        ? "border-emerald-500 text-emerald-400"
-                        : "border-transparent text-gray-500 hover:text-gray-300"
+                      ? "border-emerald-500 text-emerald-400"
+                      : "border-transparent text-gray-500 hover:text-gray-300"
                       }`}
                   >
                     Annual Salary Summary
@@ -1655,8 +1656,8 @@ export const Dashboard: React.FC = () => {
                   <button
                     onClick={() => setSalarySubTab("certificate")}
                     className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${salarySubTab === "certificate"
-                        ? "border-emerald-500 text-emerald-400"
-                        : "border-transparent text-gray-500 hover:text-gray-300"
+                      ? "border-emerald-500 text-emerald-400"
+                      : "border-transparent text-gray-500 hover:text-gray-300"
                       }`}
                   >
                     Salary Certificate PDF
@@ -2325,8 +2326,8 @@ export const Dashboard: React.FC = () => {
                   <button
                     onClick={() => setInvestSubTab("eligible")}
                     className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${investSubTab === "eligible"
-                        ? "border-emerald-500 text-emerald-400"
-                        : "border-transparent text-gray-500 hover:text-gray-300"
+                      ? "border-emerald-500 text-emerald-400"
+                      : "border-transparent text-gray-500 hover:text-gray-300"
                       }`}
                   >
                     Eligible Investments
@@ -2334,8 +2335,8 @@ export const Dashboard: React.FC = () => {
                   <button
                     onClick={() => setInvestSubTab("ait")}
                     className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${investSubTab === "ait"
-                        ? "border-emerald-500 text-emerald-400"
-                        : "border-transparent text-gray-500 hover:text-gray-300"
+                      ? "border-emerald-500 text-emerald-400"
+                      : "border-transparent text-gray-500 hover:text-gray-300"
                       }`}
                   >
                     Advance Tax Paid (AIT)
@@ -2343,8 +2344,8 @@ export const Dashboard: React.FC = () => {
                   <button
                     onClick={() => setInvestSubTab("summary")}
                     className={`py-2.5 px-4 border-b-2 font-medium text-sm transition-all cursor-pointer ${investSubTab === "summary"
-                        ? "border-emerald-500 text-emerald-400"
-                        : "border-transparent text-gray-500 hover:text-gray-300"
+                      ? "border-emerald-500 text-emerald-400"
+                      : "border-transparent text-gray-500 hover:text-gray-300"
                       }`}
                   >
                     Tax Rebate Analytics
@@ -3062,9 +3063,9 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* User Management & Rules Panels Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="flex flex-col gap-6">
               {/* User Oversight Table */}
-              <div className="lg:col-span-2 glass-panel p-6 rounded-xl flex flex-col gap-4">
+              <div className="glass-panel p-6 rounded-xl flex flex-col gap-4">
                 <div className="flex justify-between items-center pb-3 border-b border-gray-800/50">
                   <h3 className="text-lg font-bold text-white m-0">System Users Oversight</h3>
                   <span className="text-xs text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/20 font-semibold">
@@ -3100,12 +3101,12 @@ export const Dashboard: React.FC = () => {
                             <td className="py-3 px-2 text-gray-400">{u.phone}</td>
                             <td className="py-3 px-2">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${u.role === "Admin"
-                                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                                  : u.role === "CA"
-                                    ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                                    : u.role === "SuperAdmin"
-                                      ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                                      : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                : u.role === "CA"
+                                  ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                                  : u.role === "SuperAdmin"
+                                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                                 }`}>
                                 {u.role === "Admin" ? "Company Admin" : u.role === "CA" ? "CA Firm" : u.role === "SuperAdmin" ? "Super Admin" : "Taxpayer"}
                               </span>
@@ -3145,60 +3146,13 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* NBR Rules Engine Configurator Preview */}
+              {/* NBR Rules Engine Configurator Manager */}
               <div className="glass-panel p-6 rounded-xl flex flex-col gap-4">
-                <h3 className="text-lg font-bold text-white pb-3 border-b border-gray-800/50 m-0">
-                  NBR Act 2023 Rules Engine Preview ({activeYear})
+                <h3 className="text-lg font-bold text-white pb-3 border-b border-gray-800/50 m-0 flex items-center gap-2">
+                  🛠️ NBR Act Rules Engine Configurator (Visual Slab Builder)
                 </h3>
-
-                <div className="space-y-3 text-xs">
-                  <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
-                    <span className="text-gray-400">General Tax Free Threshold:</span>
-                    <span className="text-white font-bold">৳ {rebateRate === 0.15 ? "3,50,000" : "4,00,000"}</span>
-                  </div>
-
-                  <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
-                    <span className="text-gray-400">Female / Senior (65+) Threshold:</span>
-                    <span className="text-white font-bold">৳ {rebateRate === 0.15 ? "4,00,000" : "4,25,000"}</span>
-                  </div>
-
-                  <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
-                    <span className="text-gray-400">Max Investment Rebate Cap:</span>
-                    <span className="text-emerald-400 font-bold">৳ {rebateRate === 0.15 ? "10,00,000" : "7,50,000"}</span>
-                  </div>
-
-                  <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
-                    <span className="text-gray-400">Max Allowable Investment:</span>
-                    <span className="text-emerald-400 font-bold">20% Taxable Income</span>
-                  </div>
-
-                  <div className="p-3 bg-gray-900/60 rounded-lg border border-gray-800 flex justify-between items-center">
-                    <span className="text-gray-400">Rebate Percentage (Sec 78):</span>
-                    <span className="text-emerald-400 font-bold">{Math.round(rebateRate * 100)}%</span>
-                  </div>
-
-                  <div className="p-3 bg-purple-950/20 border border-purple-500/20 rounded-lg space-y-1.5">
-                    <span className="text-[11px] font-bold text-purple-400 block">Slab Rates Breakdown:</span>
-                    {rebateRate === 0.15 ? (
-                      <div className="text-[11px] text-gray-300 space-y-1 font-mono">
-                        <div className="flex justify-between"><span>First ৳3.5L:</span><span className="text-emerald-400">0%</span></div>
-                        <div className="flex justify-between"><span>Next ৳1.0L:</span><span>5%</span></div>
-                        <div className="flex justify-between"><span>Next ৳3.0L:</span><span>10%</span></div>
-                        <div className="flex justify-between"><span>Next ৳4.0L:</span><span>15%</span></div>
-                        <div className="flex justify-between"><span>Next ৳5.0L:</span><span>20%</span></div>
-                        <div className="flex justify-between"><span>Balance:</span><span className="text-rose-400">25%</span></div>
-                      </div>
-                    ) : (
-                      <div className="text-[11px] text-gray-300 space-y-1 font-mono">
-                        <div className="flex justify-between"><span>First ৳4.0L:</span><span className="text-emerald-400">0%</span></div>
-                        <div className="flex justify-between"><span>Next ৳3.0L:</span><span>10%</span></div>
-                        <div className="flex justify-between"><span>Next ৳4.0L:</span><span>15%</span></div>
-                        <div className="flex justify-between"><span>Next ৳5.0L:</span><span>20%</span></div>
-                        <div className="flex justify-between"><span>Next ৳20.0L:</span><span>25%</span></div>
-                        <div className="flex justify-between"><span>Balance:</span><span className="text-rose-400">30%</span></div>
-                      </div>
-                    )}
-                  </div>
+                <div className="mt-2.5">
+                  <RulesManagerPanel />
                 </div>
               </div>
             </div>

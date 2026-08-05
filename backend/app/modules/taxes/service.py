@@ -35,6 +35,81 @@ class TaxService:
             )
         return employee
 
+    async def _get_applicable_rules(self, financial_year: str) -> dict:
+        """Retrieve tax rules for a financial year from DB, with seeding and local fallback."""
+        from app.core.tax_rules import get_tax_rules
+        from app.modules.taxes.model import TaxRule
+        from app.modules.taxes.repository import TaxRuleRepository
+
+        rule_repo = TaxRuleRepository(self.db)
+        db_rule = await rule_repo.get_by_year(financial_year)
+        if db_rule:
+            # Map DB TaxRule to the expected dict structure
+            return {
+                "exemption_rate": db_rule.exemption_rate,
+                "exemption_max": db_rule.exemption_max,
+                "dps_max": db_rule.dps_max,
+                "rebate_rate": db_rule.rebate_rate,
+                "income_rebate_limit_rate": db_rule.income_rebate_limit_rate,
+                "max_rebate_cap": db_rule.max_rebate_cap,
+                "max_eligible_invest_rate": db_rule.max_eligible_invest_rate,
+                "max_eligible_invest_cap": db_rule.max_eligible_invest_cap,
+                "thresholds": {
+                    k: Decimal(str(v)) for k, v in db_rule.thresholds.items()
+                },
+                "slabs": [
+                    (
+                        slab[0],
+                        Decimal(str(slab[1])) if slab[1] is not None else None,
+                        Decimal(str(slab[2])),
+                    )
+                    for slab in db_rule.slabs
+                ],
+                "minimum_tax_location_based": db_rule.minimum_tax_location_based,
+                "minimum_tax": {
+                    k: Decimal(str(v)) for k, v in db_rule.minimum_tax.items()
+                },
+            }
+
+        # Fallback to local python config
+        local_rules = get_tax_rules(financial_year)
+
+        # Seed the DB so it exists for editing / customization
+        try:
+            serialized_slabs = []
+            for name, value, rate in local_rules["slabs"]:
+                val_float = float(value) if value is not None else None
+                rate_float = float(rate)
+                serialized_slabs.append([name, val_float, rate_float])
+
+            serialized_thresholds = {
+                k: float(v) for k, v in local_rules["thresholds"].items()
+            }
+            serialized_min_tax = {
+                k: float(v) for k, v in local_rules["minimum_tax"].items()
+            }
+
+            new_db_rule = TaxRule(
+                financial_year=financial_year,
+                exemption_rate=local_rules["exemption_rate"],
+                exemption_max=local_rules["exemption_max"],
+                dps_max=local_rules["dps_max"],
+                rebate_rate=local_rules["rebate_rate"],
+                income_rebate_limit_rate=local_rules["income_rebate_limit_rate"],
+                max_rebate_cap=local_rules["max_rebate_cap"],
+                max_eligible_invest_rate=local_rules["max_eligible_invest_rate"],
+                max_eligible_invest_cap=local_rules["max_eligible_invest_cap"],
+                thresholds=serialized_thresholds,
+                slabs=serialized_slabs,
+                minimum_tax_location_based=local_rules["minimum_tax_location_based"],
+                minimum_tax=serialized_min_tax,
+            )
+            await rule_repo.create(new_db_rule)
+        except Exception as e:
+            print(f"Notice: Failed to seed dynamic rules for {financial_year}: {e}")
+
+        return local_rules
+
     async def calculate_tax(
         self,
         user_id: uuid.UUID,
@@ -101,10 +176,8 @@ class TaxService:
                 tds_salary += s.tax_deducted
                 pf_salary += s.provident_fund + s.employer_provident_fund
 
-        # Get tax rules dynamically
-        from app.core.tax_rules import get_tax_rules
-
-        rules = get_tax_rules(financial_year)
+        # Get tax rules dynamically from database with fallback & seeding
+        rules = await self._get_applicable_rules(financial_year)
 
         # 2. Exemption Calculation (Salaried income: 1/3 of total salary or 4,50,000 BDT, whichever is lower)
         exempted_salary = min(
