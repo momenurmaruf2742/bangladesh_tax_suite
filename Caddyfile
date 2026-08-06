@@ -1,9 +1,0 @@
-# Frontend Subdomain
-taxsuite.momenurislam.com {
-    reverse_proxy frontend:80
-}
-
-# Backend API Subdomain
-api-taxsuite.momenurislam.com {
-    reverse_proxy backend:8000
-}
