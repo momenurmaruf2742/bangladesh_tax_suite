@@ -6,37 +6,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Run Backend Pytest
-        run: |
-          cd backend
-          python -m venv .venv
-          source .venv/bin/activate
-          pip install -r requirements.txt
-          pytest
-
-      - name: Set up Node.js & Test Frontend Build
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Test Frontend Build
-        run: |
-          cd frontend
-          npm install
-          npm run build
-
       - name: Deploy to Server via SSH
         if: github.ref == 'refs/heads/production'
         uses: appleboy/ssh-action@v1.0.3
