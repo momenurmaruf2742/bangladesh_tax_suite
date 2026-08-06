@@ -2,7 +2,8 @@ name: Production CI/CD Pipeline
 
 on:
   push:
-    branches: [ "production" ]
+    branches: [ "production", "develop" ]
+  workflow_dispatch:
 
 jobs:
   test-and-deploy:
@@ -37,6 +38,7 @@ jobs:
           npm run build
 
       - name: Deploy to Server via SSH
+        if: github.ref == 'refs/heads/production'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_IP }}
