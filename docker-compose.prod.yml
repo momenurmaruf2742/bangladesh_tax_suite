@@ -29,6 +29,7 @@ services:
 
   # 3. FastAPI Backend
   backend:
+    image: ghcr.io/momenurmaruf2742/taxsuite-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -47,6 +48,7 @@ services:
 
   # 4. React Frontend (Nginx Build on Port 3000)
   frontend:
+    image: ghcr.io/momenurmaruf2742/taxsuite-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
