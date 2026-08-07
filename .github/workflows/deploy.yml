@@ -7,6 +7,10 @@ on:
       - develop
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-and-deploy:
     name: Build and Deploy to VPS
