@@ -15,11 +15,8 @@ import {
   FileCheck,
   Plus,
   Trash2,
-  HelpCircle,
-  ArrowRight,
   ShieldCheck,
   TrendingDown,
-  TrendingUp,
   Receipt,
   Home,
   Zap,
@@ -46,9 +43,7 @@ interface AssetItem {
 }
 
 export const WealthReconciliationView: React.FC<WealthReconciliationViewProps> = ({
-  employee,
-  onNavigateToSalary,
-  onNavigateToTaxCalculator
+  employee
 }) => {
   const queryClient = useQueryClient();
   const [financialYear, setFinancialYear] = useState("2025-2026");
@@ -70,7 +65,7 @@ export const WealthReconciliationView: React.FC<WealthReconciliationViewProps> =
   };
 
   // 1. Fetch IT-10BB Lifestyle Expenses
-  const { data: lifestyleData, isLoading: isLifestyleLoading, refetch: refetchLifestyle } = useQuery({
+  const { data: lifestyleData, refetch: refetchLifestyle } = useQuery({
     queryKey: ["lifestyleExpenses", financialYear],
     queryFn: async () => {
       const res = await api.get(`/taxes/it10bb?financial_year=${financialYear}`);
@@ -80,7 +75,7 @@ export const WealthReconciliationView: React.FC<WealthReconciliationViewProps> =
   });
 
   // 2. Fetch IT-10B Statement
-  const { data: statementData, isLoading: isStatementLoading, refetch: refetchStatement } = useQuery({
+  const { data: statementData, refetch: refetchStatement } = useQuery({
     queryKey: ["it10bStatement", financialYear],
     queryFn: async () => {
       const res = await api.get(`/taxes/it10b?financial_year=${financialYear}`);
@@ -187,7 +182,7 @@ export const WealthReconciliationView: React.FC<WealthReconciliationViewProps> =
       const res = await api.post("/taxes/it10bb", payload);
       return res.data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lifestyleExpenses", financialYear] });
       queryClient.invalidateQueries({ queryKey: ["it10bStatement", financialYear] });
       showToast("✅ Form IT-10BB Lifestyle Expenses successfully saved and synced!");
@@ -220,7 +215,7 @@ export const WealthReconciliationView: React.FC<WealthReconciliationViewProps> =
       const res = await api.post("/taxes/it10b", payload);
       return res.data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["it10bStatement", financialYear] });
       showToast("✅ Form IT-10B Statement of Assets & Liabilities saved!");
     }
