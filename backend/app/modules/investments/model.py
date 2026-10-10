@@ -36,11 +36,11 @@ class Investment(SQLModel, table=True):
     doc_path: str | None = Field(default=None, nullable=True, description="Path to proof of investment")
     
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False
     )
 
@@ -79,10 +79,10 @@ class AITRecord(SQLModel, table=True):
     doc_path: str | None = Field(default=None, nullable=True, description="Path to AIT payment receipt")
 
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False
     )

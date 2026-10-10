@@ -9,19 +9,23 @@ import {
   Info,
   History,
   Coins,
-  FileText
+  FileText,
+  Scale,
+  ArrowRight
 } from "lucide-react";
 
 interface TaxCalculatorPanelProps {
   employee: any;
   onNavigateToProfile: () => void;
   onNavigateToInvestments: () => void;
+  onNavigateToReconciliation?: () => void;
 }
 
 export const TaxCalculatorPanel: React.FC<TaxCalculatorPanelProps> = ({
   employee,
   onNavigateToProfile,
-  onNavigateToInvestments
+  onNavigateToInvestments,
+  onNavigateToReconciliation
 }) => {
   const queryClient = useQueryClient();
   const [financialYear, setFinancialYear] = useState("2025-2026");
@@ -363,6 +367,29 @@ export const TaxCalculatorPanel: React.FC<TaxCalculatorPanelProps> = ({
                 }
                 return null;
               })()}
+
+              {/* IT-10B & IT-10BB Statutory Reconciliation Card */}
+              <div className="glass-panel p-5 rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/20 via-gray-900 to-gray-950 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                      <Scale className="w-4 h-4" /> Form IT-10B Assets & IT-10BB Lifestyle Parity
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-300 m-0">
+                    Statutory Parity Check: Verify your Taxable Salary (৳{formatCurrency(calcResult.summary.taxable_salary)}), Exemption (৳{formatCurrency(calcResult.summary.exempted_salary)}), and TDS (৳{formatCurrency(calcResult.summary.tds_salary)}) balance to ৳0.00 difference against your net assets.
+                  </p>
+                </div>
+                {onNavigateToReconciliation && (
+                  <button
+                    onClick={onNavigateToReconciliation}
+                    className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <span>Open IT-10B Wizard</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
 
               {/* Slabs Breakdown Table */}
               <div className="glass-panel p-6 rounded-xl space-y-4">

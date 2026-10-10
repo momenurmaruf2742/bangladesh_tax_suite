@@ -5,6 +5,12 @@ from decimal import Decimal
 from sqlalchemy import JSON
 from sqlmodel import Column, Field, SQLModel
 
+from app.modules.taxes.models_it10b import (  # noqa: F401
+    IT10BAssetItem,
+    IT10BStatement,
+    LifestyleExpense,
+)
+
 
 class TaxCalculation(SQLModel, table=True):
     __tablename__ = "tax_calculations"
@@ -53,7 +59,7 @@ class TaxCalculation(SQLModel, table=True):
         default=Decimal("0.0"), max_digits=12, decimal_places=2
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
 
@@ -105,6 +111,6 @@ class TaxRule(SQLModel, table=True):
         default_factory=dict, sa_column=Column(JSON, nullable=False)
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
     )

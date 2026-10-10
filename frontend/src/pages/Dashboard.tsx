@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { api, tokenStorage } from "../services/api";
 import { Loader } from "../components/Loader";
 import { TaxCalculatorPanel } from "../components/TaxCalculatorPanel";
+import { WealthReconciliationView } from "../components/WealthReconciliationView";
 import {
   PieChart,
   Pie,
@@ -89,7 +90,7 @@ interface RebateSummary {
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"overview" | "employee" | "employers" | "salary" | "investments" | "tax_calculator" | "admin_center">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "employee" | "employers" | "salary" | "investments" | "tax_calculator" | "wealth_reconciliation" | "admin_center">("overview");
   const [salarySubTab, setSalarySubTab] = useState<"slips" | "summary" | "certificate">("slips");
   const [investSubTab, setInvestSubTab] = useState<"eligible" | "ait" | "summary">("eligible");
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
@@ -840,6 +841,16 @@ export const Dashboard: React.FC = () => {
               <Calculator className="w-4 h-4" />
               Tax Calculator
             </button>
+            <button
+              onClick={() => setActiveTab("wealth_reconciliation")}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all cursor-pointer ${activeTab === "wealth_reconciliation"
+                ? "bg-emerald-500/10 text-emerald-400 font-bold"
+                : "text-gray-400 hover:bg-gray-800/40 hover:text-gray-200"
+                }`}
+            >
+              <Scale className="w-4 h-4" />
+              IT-10B Wealth & IT-10BB
+            </button>
 
             {user.role === "SuperAdmin" && (
               <button
@@ -893,6 +904,7 @@ export const Dashboard: React.FC = () => {
               {activeTab === "salary" && "Salary Components & Certificate"}
               {activeTab === "investments" && "Investments & Tax Rebates"}
               {activeTab === "tax_calculator" && "Income Tax Calculator"}
+              {activeTab === "wealth_reconciliation" && "IT-10B Assets & IT-10BB Lifestyle Reconciliation"}
             </h1>
             <p className="text-sm text-gray-400 mt-1">
               {activeTab === "overview" && "Here is your tax overview for assessment year 2025-2026."}
@@ -901,6 +913,7 @@ export const Dashboard: React.FC = () => {
               {activeTab === "salary" && "Input monthly salary components, aggregate annual summaries, or verify salary certificates."}
               {activeTab === "investments" && "Log eligible investments (DPS, Insurance, Stocks) and Advance Income Tax (AIT) records."}
               {activeTab === "tax_calculator" && "Calculate dynamic tax projections, investment rebate optimization, and manage historical logs."}
+              {activeTab === "wealth_reconciliation" && "Double-entry reconciliation for Statement of Assets, Liabilities & Lifestyle Expenses (NBR Rule 10B)."}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -2989,6 +3002,15 @@ export const Dashboard: React.FC = () => {
             employee={employee}
             onNavigateToProfile={() => setActiveTab("employee")}
             onNavigateToInvestments={() => setActiveTab("investments")}
+            onNavigateToReconciliation={() => setActiveTab("wealth_reconciliation")}
+          />
+        )}
+
+        {activeTab === "wealth_reconciliation" && (
+          <WealthReconciliationView
+            employee={employee}
+            onNavigateToSalary={() => setActiveTab("salary")}
+            onNavigateToTaxCalculator={() => setActiveTab("tax_calculator")}
           />
         )}
 

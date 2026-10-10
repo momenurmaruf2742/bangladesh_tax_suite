@@ -5,9 +5,24 @@ from decimal import Decimal
 from app.modules.employees.repository import EmployeeRepository
 from app.modules.investments.repository import InvestmentRepository
 from app.modules.salaries.repository import SalaryRepository
-from app.modules.taxes.model import TaxCalculation
-from app.modules.taxes.repository import TaxRepository
+from app.modules.taxes.model import (
+    IT10BAssetItem,
+    IT10BStatement,
+    LifestyleExpense,
+    TaxCalculation,
+)
+from app.modules.taxes.repository import (
+    IT10BAssetItemRepository,
+    IT10BRepository,
+    LifestyleExpenseRepository,
+    TaxRepository,
+)
 from app.modules.taxes.schema import (
+    IT10BAssetItemCreate,
+    IT10BStatementCreate,
+    IT10BStatementUpdate,
+    LifestyleExpenseCreate,
+    LifestyleExpenseUpdate,
     TaxCalculationResponse,
     TaxDetailsResponse,
     TaxSlabBreakdown,
@@ -24,6 +39,9 @@ class TaxService:
         self.employee_repo = EmployeeRepository(db)
         self.salary_repo = SalaryRepository(db)
         self.invest_repo = InvestmentRepository(db)
+        self.it10b_repo = IT10BRepository(db)
+        self.asset_item_repo = IT10BAssetItemRepository(db)
+        self.lifestyle_repo = LifestyleExpenseRepository(db)
 
     async def _get_employee(self, user_id: uuid.UUID):
         """Fetch employee profile or raise exception."""
@@ -325,7 +343,7 @@ class TaxService:
             ait_paid=ait_paid,
             tds_salary=tds_salary,
             final_payable=final_payable,
-            created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            created_at=datetime.now(timezone.utc),
         )
 
         return TaxDetailsResponse(
@@ -765,3 +783,348 @@ class TaxService:
 </html>
 """
         return html
+
+    # --- IT-10B & IT-10BB Modules (NBR 2023 Parity) ---
+
+    @staticmethod
+    def derive_assessment_year(financial_year: str) -> str:
+        """Derive Assessment Year (AY) from Financial/Income Year (FY). E.g. '2025-2026' -> '2026-2027'."""
+        try:
+            parts = financial_year.split("-")
+            start_y = int(parts[0])
+            end_y = int(parts[1])
+            return f"{start_y + 1}-{end_y + 1}"
+        except Exception:
+            return "2026-2027"
+
+    def reconcile_wealth(self, statement: IT10BStatement) -> Decimal:
+        """
+        Reconciles Net Wealth according to NBR Form IT-10B (Section 163 & Rule 10B):
+        Sources of Fund + Previous Year Net Wealth = Lifestyle Outflow + Closing Net Wealth + Liabilities
+        Difference = Total Source - Total Outflow
+        """
+        total_source = (
+            statement.taxable_income
+            + statement.tax_exempted_income
+            + statement.gifts_and_other_receipts
+        )
+        statement.total_fund_inflow = total_source
+
+        gross_assets = (
+            statement.business_assets
+            + statement.non_agricultural_property
+            + statement.agricultural_property
+            + statement.financial_assets_dps
+            + statement.financial_assets_others
+            + statement.motor_vehicles_value
+            + statement.ornaments_gold_value
+            + statement.furniture_electronics_value
+            + statement.cash_in_hand
+            + statement.bank_balances
+            + statement.other_deposits
+        )
+        statement.gross_wealth = gross_assets
+
+        total_liabilities = (
+            statement.institutional_liabilities
+            + statement.non_institutional_liabilities
+        )
+        statement.total_liabilities = total_liabilities
+
+        net_wealth_closing = gross_assets - total_liabilities
+        statement.net_wealth_closing = net_wealth_closing
+
+        change_in_wealth = net_wealth_closing - statement.net_wealth_previous_year
+        statement.change_in_net_wealth = change_in_wealth
+
+        total_outflow = (
+            change_in_wealth
+            + statement.lifestyle_expenses
+            + statement.other_outflow_losses
+        )
+        statement.total_fund_outflow = total_outflow
+
+        statement.difference = total_source - total_outflow
+        statement.is_balanced = (statement.difference == Decimal("0.00"))
+        return statement.difference
+
+    async def _calculate_synced_tds_advance(
+        self, user_id: uuid.UUID, financial_year: str
+    ) -> Decimal:
+        """Calculate line 8 (TDS from salary + advance taxes/AIT) from database ledgers."""
+        employee = await self.employee_repo.get_by_user_id(user_id)
+        if not employee:
+            return Decimal("0.00")
+
+        # Annual salary TDS: check verified salary certificate first
+        certs = await self.salary_repo.get_certificates_by_employee(employee.id)
+        active_cert = None
+        for c in certs:
+            if c.financial_year == financial_year and c.status == "Verified":
+                active_cert = c
+                break
+
+        salary_tds = Decimal("0.00")
+        if active_cert:
+            salary_tds = active_cert.total_tax_deducted
+        else:
+            try:
+                parts = financial_year.split("-")
+                start_month = f"{parts[0]}-07"
+                end_month = f"{parts[1]}-06"
+                slips = await self.salary_repo.get_slips_by_financial_year(
+                    employee.id, start_month, end_month
+                )
+                salary_tds = sum(
+                    (s.tax_deducted for s in slips), Decimal("0.00")
+                )
+            except Exception:
+                salary_tds = Decimal("0.00")
+
+        # Annual advance tax from AIT records
+        ait_logs = await self.invest_repo.get_aits_by_employee(employee.id)
+        ait_total = sum(
+            (ait.amount for ait in ait_logs if ait.financial_year == financial_year),
+            Decimal("0.00"),
+        )
+        return salary_tds + ait_total
+
+    async def get_or_calculate_lifestyle_expenses(
+        self, user_id: uuid.UUID, financial_year: str
+    ) -> LifestyleExpense:
+        """Fetch saved lifestyle expense or compute default with auto-synced TDS/AIT."""
+        existing = await self.lifestyle_repo.get_by_user_and_year(user_id, financial_year)
+        if existing:
+            return existing
+
+        assessment_year = self.derive_assessment_year(financial_year)
+        synced_tds = await self._calculate_synced_tds_advance(user_id, financial_year)
+
+        expense = LifestyleExpense(
+            user_id=user_id,
+            financial_year=financial_year,
+            assessment_year=assessment_year,
+            tax_deducted_source_advance=synced_tds,
+            total_lifestyle_expense=synced_tds,
+            auto_synced_tds=True,
+        )
+        return expense
+
+    async def save_lifestyle_expenses(
+        self,
+        user_id: uuid.UUID,
+        expense_in: LifestyleExpenseCreate | LifestyleExpenseUpdate,
+        financial_year: str | None = None,
+    ) -> LifestyleExpense:
+        """Save or update lifestyle expenses, computing line totals and optional TDS auto-sync."""
+        fy = getattr(expense_in, "financial_year", None) or financial_year or "2025-2026"
+        existing = await self.lifestyle_repo.get_by_user_and_year(user_id, fy)
+
+        if not existing:
+            ay = getattr(expense_in, "assessment_year", None) or self.derive_assessment_year(fy)
+            target = LifestyleExpense(
+                user_id=user_id,
+                financial_year=fy,
+                assessment_year=ay,
+            )
+            is_new = True
+        else:
+            target = existing
+            is_new = False
+
+        data_dict = expense_in.model_dump(exclude_unset=True)
+        for field, value in data_dict.items():
+            if field not in ("id", "user_id", "created_at", "updated_at", "total_lifestyle_expense"):
+                if value is not None:
+                    setattr(target, field, value)
+
+        if not target.assessment_year:
+            target.assessment_year = self.derive_assessment_year(target.financial_year)
+
+        # Auto-sync TDS if requested or if line 8 is None
+        if target.auto_synced_tds:
+            synced_tds = await self._calculate_synced_tds_advance(user_id, target.financial_year)
+            target.tax_deducted_source_advance = synced_tds
+
+        # Calculate total lifestyle expense (Sum of lines 1 to 9 + other)
+        target.total_lifestyle_expense = (
+            target.fooding_clothing_essentials
+            + target.housing_expense
+            + target.transport_expense
+            + target.utility_expense
+            + target.education_expenses
+            + target.travel_vacation_expenses
+            + target.festival_special_expenses
+            + target.tax_deducted_source_advance
+            + target.interest_paid_borrowing
+            + target.other_expenses
+        )
+        target.updated_at = datetime.now(timezone.utc)
+
+        if is_new:
+            await self.lifestyle_repo.create(target)
+        else:
+            self.db.add(target)
+            await self.db.flush()
+
+        return target
+
+    async def calculate_or_get_it10b_statement(
+        self, user_id: uuid.UUID, financial_year: str
+    ) -> IT10BStatement:
+        """Fetch saved IT-10B statement or initialize with default/inferred values."""
+        statement = await self.it10b_repo.get_by_user_and_year(user_id, financial_year)
+        if not statement:
+            ay = self.derive_assessment_year(financial_year)
+            statement = IT10BStatement(
+                user_id=user_id,
+                financial_year=financial_year,
+                assessment_year=ay,
+            )
+            # Sync lifestyle expenses if available
+            lifestyle = await self.lifestyle_repo.get_by_user_and_year(user_id, financial_year)
+            if lifestyle:
+                statement.lifestyle_expenses = lifestyle.total_lifestyle_expense
+
+            # Sync taxable & exempted income from latest tax calculation if exists
+            employee = await self.employee_repo.get_by_user_id(user_id)
+            if employee:
+                tax_calc = await self.repo.get_by_employee_and_year(employee.id, financial_year)
+                if tax_calc:
+                    statement.taxable_income = tax_calc.taxable_salary + tax_calc.other_income
+                    statement.tax_exempted_income = tax_calc.exempted_salary
+
+            self.reconcile_wealth(statement)
+        return statement
+
+    async def save_it10b_statement(
+        self,
+        user_id: uuid.UUID,
+        statement_in: IT10BStatementCreate | IT10BStatementUpdate,
+        financial_year: str | None = None,
+    ) -> IT10BStatement:
+        """Save or update IT-10B Statement and perform double-entry wealth reconciliation."""
+        fy = getattr(statement_in, "financial_year", None) or financial_year or "2025-2026"
+        statement = await self.it10b_repo.get_by_user_and_year(user_id, fy)
+
+        if not statement:
+            ay = getattr(statement_in, "assessment_year", None) or self.derive_assessment_year(fy)
+            statement = IT10BStatement(
+                user_id=user_id,
+                financial_year=fy,
+                assessment_year=ay,
+            )
+            is_new = True
+        else:
+            is_new = False
+
+        data_dict = statement_in.model_dump(exclude_unset=True)
+        read_only_fields = {
+            "id",
+            "user_id",
+            "created_at",
+            "updated_at",
+            "difference",
+            "is_balanced",
+            "gross_wealth",
+            "net_wealth_closing",
+            "change_in_net_wealth",
+            "total_fund_inflow",
+            "total_fund_outflow",
+            "total_liabilities",
+        }
+        for field, value in data_dict.items():
+            if field not in read_only_fields and value is not None:
+                setattr(statement, field, value)
+
+        if not statement.assessment_year:
+            statement.assessment_year = self.derive_assessment_year(statement.financial_year)
+
+        # Auto-sync lifestyle expenses if statement.lifestyle_expenses is not set or is 0
+        if not statement.lifestyle_expenses or statement.lifestyle_expenses == Decimal("0.00"):
+            lifestyle = await self.lifestyle_repo.get_by_user_and_year(user_id, statement.financial_year)
+            if lifestyle:
+                statement.lifestyle_expenses = lifestyle.total_lifestyle_expense
+
+        # Reconcile wealth
+        self.reconcile_wealth(statement)
+        statement.updated_at = datetime.now(timezone.utc)
+
+        if is_new:
+            await self.it10b_repo.create(statement)
+        else:
+            self.db.add(statement)
+            await self.db.flush()
+
+        return statement
+
+    async def auto_balance_cash_in_hand(
+        self, user_id: uuid.UUID, financial_year: str
+    ) -> IT10BStatement:
+        """
+        Auto-balances the residual difference into cash_in_hand directly
+        to achieve Difference == 0.00 statutory compliance.
+        """
+        statement = await self.calculate_or_get_it10b_statement(user_id, financial_year)
+        self.reconcile_wealth(statement)
+
+        diff = statement.difference
+        statement.cash_in_hand += diff
+        self.reconcile_wealth(statement)
+        statement.updated_at = datetime.now(timezone.utc)
+        self.db.add(statement)
+        await self.db.flush()
+        return statement
+
+    async def add_asset_item(
+        self, user_id: uuid.UUID, statement_id: uuid.UUID, item_in: IT10BAssetItemCreate
+    ) -> IT10BAssetItem:
+        """Add an asset item to IT-10B statement."""
+        statement = await self.it10b_repo.get_by_id(statement_id)
+        if not statement or statement.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="IT-10B Statement not found.",
+            )
+
+        item = IT10BAssetItem(
+            statement_id=statement_id,
+            asset_category=item_in.asset_category,
+            description=item_in.description,
+            acquisition_type=item_in.acquisition_type,
+            cost_value=item_in.cost_value,
+            particulars=item_in.particulars,
+            created_at=datetime.now(timezone.utc),
+        )
+        return await self.asset_item_repo.create(item)
+
+    async def get_statement_asset_items(
+        self, user_id: uuid.UUID, statement_id: uuid.UUID
+    ) -> list[IT10BAssetItem]:
+        """Fetch all asset items for an IT-10B statement."""
+        statement = await self.it10b_repo.get_by_id(statement_id)
+        if not statement or statement.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="IT-10B Statement not found.",
+            )
+        return await self.asset_item_repo.get_by_statement(statement_id)
+
+    async def delete_asset_item(
+        self, user_id: uuid.UUID, item_id: uuid.UUID
+    ) -> None:
+        """Delete an asset item."""
+        item = await self.asset_item_repo.get_by_id(item_id)
+        if not item:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Asset item not found.",
+            )
+        statement = await self.it10b_repo.get_by_id(item.statement_id)
+        if not statement or statement.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Permission denied.",
+            )
+        await self.asset_item_repo.delete(item)
+

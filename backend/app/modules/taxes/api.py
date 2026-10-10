@@ -5,6 +5,16 @@ from app.modules.auth.dependencies import get_current_active_admin, get_current_
 from app.modules.taxes.model import TaxRule
 from app.modules.taxes.repository import TaxRuleRepository
 from app.modules.taxes.schema import (
+    IT10BAssetItemCreate,
+    IT10BAssetItemResponse,
+    IT10BAutoBalanceResponse,
+    IT10BReconciliationDetails,
+    IT10BStatementCreate,
+    IT10BStatementResponse,
+    IT10BStatementUpdate,
+    LifestyleExpenseCreate,
+    LifestyleExpenseResponse,
+    LifestyleExpenseUpdate,
     TaxCalculationCreate,
     TaxCalculationResponse,
     TaxDetailsResponse,
@@ -184,3 +194,161 @@ async def delete_tax_rule(
 
     await repo.delete(rule)
     return None
+
+
+# --- IT-10BB Lifestyle Expenses Endpoints ---
+
+
+@router.get("/it10bb", response_model=LifestyleExpenseResponse)
+async def get_lifestyle_expenses(
+    financial_year: str = "2025-2026",
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieve Lifestyle Expenses (IT-10BB) for current user and financial year with auto-synced TDS."""
+    service = TaxService(db)
+    return await service.get_or_calculate_lifestyle_expenses(current_user.id, financial_year)
+
+
+@router.post("/it10bb", response_model=LifestyleExpenseResponse)
+async def save_lifestyle_expenses(
+    payload: LifestyleExpenseCreate,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save or update Lifestyle Expenses (Form IT-10BB)."""
+    service = TaxService(db)
+    return await service.save_lifestyle_expenses(current_user.id, payload)
+
+
+# --- IT-10B Statement of Assets and Liabilities Endpoints ---
+
+
+@router.get("/it10b", response_model=IT10BStatementResponse)
+async def get_it10b_statement(
+    financial_year: str = "2025-2026",
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieve IT-10B Statement of Assets and Liabilities for current user and financial year."""
+    service = TaxService(db)
+    statement = await service.calculate_or_get_it10b_statement(current_user.id, financial_year)
+    items = []
+    if statement.id:
+        items = await service.get_statement_asset_items(current_user.id, statement.id)
+    resp = IT10BStatementResponse.model_validate(statement)
+    resp.asset_items = [IT10BAssetItemResponse.model_validate(it) for it in items]
+    return resp
+
+
+@router.post("/it10b", response_model=IT10BStatementResponse)
+async def save_it10b_statement(
+    payload: IT10BStatementCreate,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save or update IT-10B Statement of Assets and Liabilities, executing statutory wealth reconciliation."""
+    service = TaxService(db)
+    statement = await service.save_it10b_statement(current_user.id, payload)
+    items = await service.get_statement_asset_items(current_user.id, statement.id)
+    resp = IT10BStatementResponse.model_validate(statement)
+    resp.asset_items = [IT10BAssetItemResponse.model_validate(it) for it in items]
+    return resp
+
+
+@router.post("/it10b/reconcile", response_model=IT10BReconciliationDetails)
+async def preview_it10b_reconciliation(
+    payload: IT10BStatementCreate,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Preview IT-10B wealth reconciliation calculation and check if balanced."""
+    service = TaxService(db)
+    from app.modules.taxes.model import IT10BStatement
+
+    ay = payload.assessment_year or service.derive_assessment_year(payload.financial_year)
+    dummy_stmt = IT10BStatement(
+        user_id=current_user.id,
+        financial_year=payload.financial_year,
+        assessment_year=ay,
+        **payload.model_dump(
+            exclude={"financial_year", "assessment_year", "lifestyle_expenses"}
+        ),
+    )
+    if payload.lifestyle_expenses is not None:
+        dummy_stmt.lifestyle_expenses = payload.lifestyle_expenses
+    else:
+        lifestyle = await service.lifestyle_repo.get_by_user_and_year(
+            current_user.id, payload.financial_year
+        )
+        if lifestyle:
+            dummy_stmt.lifestyle_expenses = lifestyle.total_lifestyle_expense
+
+    service.reconcile_wealth(dummy_stmt)
+    return IT10BReconciliationDetails(
+        total_fund_inflow=dummy_stmt.total_fund_inflow,
+        gross_wealth=dummy_stmt.gross_wealth,
+        total_liabilities=dummy_stmt.total_liabilities,
+        net_wealth_closing=dummy_stmt.net_wealth_closing,
+        change_in_net_wealth=dummy_stmt.change_in_net_wealth,
+        total_fund_outflow=dummy_stmt.total_fund_outflow,
+        difference=dummy_stmt.difference,
+        is_balanced=dummy_stmt.is_balanced,
+    )
+
+
+@router.post("/it10b/auto-balance-cash", response_model=IT10BAutoBalanceResponse)
+async def auto_balance_cash_in_hand(
+    financial_year: str = "2025-2026",
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Auto-adjusts cash_in_hand directly to achieve Difference == 0.00."""
+    service = TaxService(db)
+    stmt_before = await service.calculate_or_get_it10b_statement(current_user.id, financial_year)
+    old_cash = stmt_before.cash_in_hand
+    diff = stmt_before.difference
+    stmt_after = await service.auto_balance_cash_in_hand(current_user.id, financial_year)
+    return IT10BAutoBalanceResponse(
+        statement_id=stmt_after.id,
+        previous_cash_in_hand=old_cash,
+        adjusted_cash_in_hand=stmt_after.cash_in_hand,
+        difference_reconciled=diff,
+        is_balanced=stmt_after.is_balanced,
+    )
+
+
+@router.post("/it10b/{statement_id}/assets", response_model=IT10BAssetItemResponse)
+async def add_it10b_asset_item(
+    statement_id: uuid.UUID,
+    payload: IT10BAssetItemCreate,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a detailed asset item to IT-10B statement (supports Gift / Inheritance with 0 cost)."""
+    service = TaxService(db)
+    return await service.add_asset_item(current_user.id, statement_id, payload)
+
+
+@router.get("/it10b/{statement_id}/assets", response_model=list[IT10BAssetItemResponse])
+async def get_it10b_asset_items(
+    statement_id: uuid.UUID,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retrieve detailed asset items for an IT-10B statement."""
+    service = TaxService(db)
+    return await service.get_statement_asset_items(current_user.id, statement_id)
+
+
+@router.delete("/it10b/assets/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_it10b_asset_item(
+    item_id: uuid.UUID,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete an IT-10B detailed asset item."""
+    service = TaxService(db)
+    await service.delete_asset_item(current_user.id, item_id)
+    return None
+

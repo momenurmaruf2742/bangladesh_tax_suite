@@ -14,6 +14,7 @@ import app.modules.employees.model  # noqa: F401
 import app.modules.salaries.model  # noqa: F401
 import app.modules.investments.model  # noqa: F401
 import app.modules.taxes.model  # noqa: F401
+import app.modules.taxes.models_it10b  # noqa: F401
 
 
 # Create database engine
