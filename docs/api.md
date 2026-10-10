@@ -70,11 +70,11 @@ The Bangladesh Tax Suite exposes a RESTful API under the `/api/v1` namespace.
 
 ## 3. Reports & Exports (`/api/v1/reports`)
 
-### Download PDF Return & Computation Sheet
+### Download Official NBR Multi-Page Return (PDF)
 - **URL**: `/reports/tax-return/pdf?financial_year=2025-2026`
 - **Method**: `GET`
 - **Headers**: `Authorization: Bearer <token>`
-- **Response**: `application/pdf` (Downloadable NBR Computation Summary)
+- **Response**: `application/pdf` (Multi-page official Form IT-11GA 2023 return packet including IT-11GA Parts 1-5, Schedule 1 Employment, Schedule 5 Rebate, Form IT-10BB Lifestyle Expenses, Form IT-10B Assets & Liabilities, TDS Challans, and Acknowledgement Receipt).
 
 ### Download Excel Salary Statement
 - **URL**: `/reports/salary/excel?financial_year=2025-2026`
@@ -141,6 +141,79 @@ The Bangladesh Tax Suite exposes a RESTful API under the `/api/v1` namespace.
 ### Calculate and Persist History
 - **URL**: `/taxes/calculate-save`
 - **Method**: `POST`
+
+### Form IT-10BB: Get Lifestyle Expenses
+- **URL**: `/taxes/it10bb?financial_year=2025-2026`
+- **Method**: `GET`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response (`200 OK`)**: Categorized 9-line lifestyle expenditures (fooding, clothing, housing, transport, utility, festival, tax deducted at source).
+
+### Form IT-10BB: Save Lifestyle Expenses
+- **URL**: `/taxes/it10bb`
+- **Method**: `POST`
+- **Headers**: `Authorization: Bearer <token>`
+- **Payload**:
+  ```json
+  {
+    "financial_year": "2025-2026",
+    "fooding_clothing_essentials": 150000.0,
+    "housing_expense": 70000.0,
+    "transport_expense": 50000.0,
+    "utility_expense": 49000.0,
+    "festival_special_expenses": 50000.0,
+    "tax_deducted_source_advance": 9542.0
+  }
+  ```
+
+### Form IT-10B: Get Statement of Assets and Liabilities
+- **URL**: `/taxes/it10b?financial_year=2025-2026`
+- **Method**: `GET`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response (`200 OK`)**: Current user's IT-10B wealth statement, asset totals, liabilities, closing net wealth, fund inflows/outflows, difference, and itemized assets list.
+
+### Form IT-10B: Save Statement of Assets and Liabilities
+- **URL**: `/taxes/it10b`
+- **Method**: `POST`
+- **Headers**: `Authorization: Bearer <token>`
+- **Payload**: Complete `IT10BStatementCreate` object with assets, previous year wealth, liabilities, and fund sources.
+
+### Form IT-10B: Preview Net Wealth Reconciliation
+- **URL**: `/taxes/it10b/reconcile`
+- **Method**: `POST`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response (`200 OK`)**:
+  ```json
+  {
+    "total_fund_inflow": 1007300.0,
+    "gross_wealth": 756516.0,
+    "total_liabilities": 0.0,
+    "net_wealth_closing": 756516.0,
+    "change_in_net_wealth": 628758.0,
+    "total_fund_outflow": 1007300.0,
+    "difference": 0.0,
+    "is_balanced": true
+  }
+  ```
+
+### Form IT-10B: Auto-Balance Cash in Hand
+- **URL**: `/taxes/it10b/auto-balance-cash?financial_year=2025-2026`
+- **Method**: `POST`
+- **Headers**: `Authorization: Bearer <token>`
+- **Response (`200 OK`)**: Auto-adjusts `cash_in_hand` to reconcile difference to `৳0.00`.
+
+### Form IT-10B: Add Itemized Asset (Gift/Inheritance supported)
+- **URL**: `/taxes/it10b/{statement_id}/assets`
+- **Method**: `POST`
+- **Headers**: `Authorization: Bearer <token>`
+- **Payload**:
+  ```json
+  {
+    "asset_category": "Motor Vehicles",
+    "description": "Motorcycle (150cc)",
+    "acquisition_type": "Purchase",
+    "acquisition_cost": 250000.0
+  }
+  ```
 
 ---
 

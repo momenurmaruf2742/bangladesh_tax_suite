@@ -18,10 +18,10 @@ class Employer(SQLModel, table=True):
     contact_email: str | None = Field(default=None, nullable=True)
     contact_phone: str | None = Field(default=None, nullable=True)
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False
     )

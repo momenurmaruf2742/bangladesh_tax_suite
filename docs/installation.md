@@ -166,3 +166,17 @@ npm install
 cp .env.example .env
 npm run dev
 ```
+
+---
+
+## 🧪 Test Suite Verification
+
+Verify all 19 unit, integration, and statutory compliance test cases:
+
+```bash
+cd backend
+uv run pytest
+# or
+pytest app/tests
+```
+

@@ -35,10 +35,10 @@ class Employee(SQLModel, table=True):
     is_freedom_fighter: bool = Field(default=False, nullable=False)
     location: str = Field(default="Dhaka/Chittagong City Corporation", nullable=False)
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False
     )

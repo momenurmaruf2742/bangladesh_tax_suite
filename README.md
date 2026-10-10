@@ -8,11 +8,12 @@
 
 ### Key Features
 - 🔐 **Multi-Role Authentication & Access Control**: Self-registration for Individual Taxpayers, Corporate Admins, and CA Firms with Super Admin approval workflow.
-- 📐 **NBR Income Tax Act 2023 Calculation Engine**: Dynamic, multi-year support via a central rules registry config. Performs automated progressive slab calculations, 1/3rd salary exemptions, and tax-free threshold rule application for FY 2024-2025 and 2025-2026.
+- 📐 **NBR Income Tax Act 2023 Calculation Engine**: Dynamic, multi-year support via a central rules registry config. Performs automated progressive slab calculations, 1/3rd salary exemptions, and tax-free threshold rule application for FY 2024-2025 and 2025-2026 with 100% mathematical parity against official NBR e-Returns.
 - 💎 **Section 78 Investment Rebate Engine**: Automated, assessment-year-aware rebate calculations. It dynamically adjusts investment tax rebate rates (15% for FY 24-25, 10% for FY 25-26), investment ceilings (৳1 Crore down to ৳75 Lakh), and DPS limits (৳1.2L cap).
+- ⚖️ **NBR Form IT-10B & IT-10BB Wealth Reconciliation**: Full statutory implementation of Statement of Assets & Liabilities (Form IT-10B) and Lifestyle Expenses (Form IT-10BB). Enforces automated double-entry net wealth reconciliation: $\text{Total Inflow} == \text{Total Outflow}$ and $\text{Difference} = \text{৳0.00}$, complete with an auto-balance cash-in-hand assistant.
 - ⚡ **PDF OCR Salary Certificate Parser**: Automated text extraction from uploaded salary certificates and payslips with smart zero-tax (Nil) fallback detection.
-- 📥 **PDF & Excel Exporters**: One-click downloadable official NBR Form IT-1152023 Income Tax Return Computation Sheet (PDF) and multi-tab Excel Salary Statements.
-- 📊 **Visual Analytics**: Interactive Recharts Donut & Bar charts for salary component breakdowns and tax slab progressions.
+- 📥 **Official Multi-Page NBR Form IT-11GA (2023) PDF Exporter**: Generates authentic, production-ready multi-page NBR return packets including Part 1-5, Schedule 1 (Salary), Schedule 5 (Rebate), Form IT-10BB, Form IT-10B, TDS Challans, and Acknowledgement Receipts, alongside multi-tab Excel Salary Statements.
+- 📊 **Visual Analytics & Wealth Wizard**: Interactive Recharts Donut & Bar charts for salary component breakdowns and tax slab progressions, plus a dedicated interactive IT-10B Wealth Reconciliation wizard.
 - 🤖 **AI Tax Assistant**: Embedded AI chatbot grounded in Bangladesh Income Tax Act 2023 regulations.
 
 ---
@@ -20,11 +21,12 @@
 ## 🚀 Tech Stack
 
 ### Backend
-- **Core Framework**: Python 3.12+ (FastAPI)
+- **Core Framework**: Python 3.12+ / 3.13 (FastAPI)
 - **Database & ORM**: PostgreSQL & SQLModel (SQLAlchemy AsyncSession + Pydantic v2)
 - **Caching & Sessions**: Redis
 - **Rules Registry**: Dynamic, configuration-driven tax rules system (`app/core/tax_rules.py`) supporting Finance Act 2024 and 2026.
-- **Testing & Quality**: Pytest (14 Unit & Integration Tests covering multi-year calculations)
+- **Reporting Engine**: ReportLab multi-page canvas with custom grids and NBR-compliant tables.
+- **Testing & Quality**: Pytest (19 comprehensive Unit & Integration Tests covering multi-year calculations, IT-10B, IT-10BB, and PDF generation)
 - **Deployment**: Docker & Docker Compose
 
 ### Frontend
@@ -50,13 +52,17 @@
   - Monthly salary logs, quick gross auto-split helper (60% basic, 30% house rent, 5% medical, 5% conveyance), and annual salary summary aggregator.
 - 📈 **Investments & AIT Tracker**:
   - DPS (max ৳1.2L cap), Sanchayapatra, Life Insurance, Stock Market, and AIT Challans with year-aware Section 78 investment tax rebate engine (15% or 10% rebate rate).
-- 📊 **Visual Analytics (Sprint 7)**:
-  - Interactive Recharts Donut Chart for salary allowances and Bar Chart for progressive NBR tax slabs (0%, 5%, 10%, 15%, 20%, 25%).
-- 📥 **PDF Return & Excel Export (Sprint 6)**:
-  - One-click downloadable **NBR Income Tax Return Computation Sheet** (PDF) and **Multi-tab Monthly Salary & Investment Statement** (Excel `.xlsx`).
-- ⚡ **PDF OCR Auto-Parser (Sprint 8)**:
+- ⚖️ **Form IT-10B Wealth & IT-10BB Expense Statements**:
+  - Comprehensive 9-line categorized lifestyle expenditures (essentials, rent, transport, utility, festival, tax).
+  - Detailed asset and liability tracking (business, property, DPS, ornaments, vehicles, furniture, cash/bank).
+  - Live double-entry reconciliation checking $\text{Total Sources of Fund} - \text{Total Fund Outflow} = 0$, with auto-balance cash feature.
+- 📊 **Visual Analytics & Dashboards**:
+  - Interactive Recharts Donut Chart for salary allowances, Bar Chart for progressive NBR tax slabs (0%, 5%, 10%, 15%, 20%, 25%), and Wealth Reconciliation View.
+- 📥 **Authentic NBR Return PDF & Excel Export**:
+  - One-click downloadable multi-page **Form IT-11GA (2023)** PDF return with schedules, IT-10B/BB, and tax acknowledgement receipt, plus **Multi-tab Monthly Salary & Investment Statement** (Excel `.xlsx`).
+- ⚡ **PDF OCR Auto-Parser**:
   - Upload PDF payslips or salary certificates to automatically extract Basic, House Rent, Medical, Conveyance, Bonus, and TDS figures.
-- 🤖 **AI Tax Assistant (Sprint 8)**:
+- 🤖 **AI Tax Assistant**:
   - Interactive floating AI chatbot grounded in **Bangladesh Income Tax Act 2023** regulations.
 
 ---
@@ -224,28 +230,30 @@ Detailed technical specifications and architecture guidelines can be found in th
 bangladesh-tax-suite/
 ├── backend/                  # FastAPI async backend code
 │   ├── app/
-│   │   ├── core/             # Security, JWT, settings
+│   │   ├── core/             # Security, JWT, dynamic tax rules registry
 │   │   ├── db/               # Database engine & init_db
 │   │   ├── modules/          # Domain Modules
 │   │   │   ├── auth/         # Login, Register, JWT, Profile
 │   │   │   ├── users/        # Super Admin Oversight & Approval
 │   │   │   ├── employers/    # Corporate Employer Directory
-│   │   │   ├── employees/    # Employee Profiles & NID/TIN
+│   │   │   ├── employees/    # Employee Profiles & NID/TIN/Zone/Circle
 │   │   │   ├── salaries/     # Monthly Slips & Summary
 │   │   │   ├── investments/  # DPS, Insurance, AIT Challans
-│   │   │   ├── taxes/        # NBR Act 2023 Tax Calculation Engine
-│   │   │   ├── reports/      # ReportLab PDF & OpenPyXL Excel Exporters
+│   │   │   ├── taxes/        # NBR Act 2023 Tax Engine, IT-10B, IT-10BB models
+│   │   │   ├── reports/      # Multi-Page ReportLab PDF Return & Excel Exporters
 │   │   │   ├── ocr/          # PyPDF OCR Text Extraction Parser
 │   │   │   └── ai/           # AI Tax Advisory Assistant
 │   │   └── main.py           # FastAPI entrypoint & router registry
 │   ├── scripts/
-│   │   └── setup_accounts.py # CLI Account Provisioning Script
-│   └── tests/                # Integration & unit tests
+│   │   ├── setup_accounts.py # CLI Account Provisioning Script
+│   │   └── create_superadmin.py # Standalone Super Admin Creator
+│   └── tests/                # 19 Unit & Integration tests (IT-10B, IT-10BB, PDF, Rules)
 ├── frontend/                 # React TypeScript frontend
 │   ├── src/
-│   │   ├── components/       # Loader, TaxCalculatorPanel, AiTaxAssistantDrawer
+│   │   ├── components/       # TaxCalculatorPanel, WealthReconciliationView, AiTaxAssistantDrawer
 │   │   ├── pages/            # Login, Register, Dashboard
 │   │   └── services/         # Axios API client
+│   └── public/
 ├── docs/                     # Technical specifications (api.md, architecture.md, installation.md)
 └── docker-compose.yml        # Orchestration configuration
 ```
@@ -254,14 +262,16 @@ bangladesh-tax-suite/
 
 ## 🧪 Running Local Tests
 
-Execute backend pytest suite (13 tests passing):
+Execute backend pytest suite (all 19 tests passing):
 
 ```bash
 # Move to backend folder
 cd backend
 
-# Execute pytest
-.venv/bin/pytest app/tests
+# Execute pytest using uv or active virtual environment
+uv run pytest
+# or
+pytest app/tests
 ```
 
 ---
@@ -276,4 +286,9 @@ cd backend
 - ✅ **Sprint 6 (Reports & Exports)**: ReportLab PDF Return Computation & OpenPyXL Excel Export.
 - ✅ **Sprint 7 (Dashboard Analytics)**: Recharts Salary & Tax Slab Visualizations.
 - ✅ **Sprint 8 (OCR & AI Assistant)**: PDF Payslip OCR Auto-Parser & Interactive AI Tax Assistant Chatbot.
+- ✅ **Phase 1-3 Compliance (NBR IT-11GA 2023 Parity)**:
+  - Form IT-10BB Lifestyle Expenses Model & API (9 statutory lines).
+  - Form IT-10B Statement of Assets & Liabilities with automated double-entry Net Wealth Reconciliation ($Difference = 0$).
+  - Frontend Wealth Reconciliation Wizard with instant cash auto-balancing.
+  - Multi-Page Authentic NBR Form IT-11GA (2023) PDF Generator (Parts 1-5, Schedules 1 & 5, IT-10B, IT-10BB, Challan Schedule & Receipt).
 - ⏳ **Sprint 9+**: Official NBR e-Return XML exporter & Bangla i18n language switcher.
